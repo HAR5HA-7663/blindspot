@@ -582,3 +582,475 @@ if (document.readyState === 'loading') {
 } else if (isExtensionContextValid()) {
   setTimeout(restoreOverlayState, 100);
 }
+
+// ============ INTERVENTION SYSTEM ============
+// Proactively detects when user might need a bias check
+
+const INTERVENTION_CONFIG = {
+  // Shopping sites
+  shoppingSites: [
+    'amazon.', 'ebay.', 'walmart.', 'target.', 'bestbuy.', 'etsy.',
+    'aliexpress.', 'shopify.', 'shop.', 'store.', 'cart', 'checkout'
+  ],
+  // Job/Career sites
+  careerSites: [
+    'linkedin.com/jobs', 'indeed.', 'glassdoor.', 'monster.', 'ziprecruiter.',
+    'careers.', 'jobs.'
+  ],
+  // Finance sites
+  financeSites: [
+    'robinhood.', 'etrade.', 'fidelity.', 'schwab.', 'coinbase.',
+    'binance.', 'crypto.', 'invest', 'trading'
+  ],
+  // Social media sites
+  socialMediaSites: [
+    'twitter.com', 'x.com', 'facebook.com', 'instagram.com', 'tiktok.com',
+    'reddit.com', 'linkedin.com/feed', 'linkedin.com/posts', 'threads.net',
+    'youtube.com', 'snapchat.com', 'discord.com'
+  ],
+  // Food delivery sites
+  foodDeliverySites: [
+    'doordash.', 'ubereats.', 'grubhub.', 'postmates.', 'seamless.',
+    'instacart.', 'gopuff.', 'deliveroo.', 'foodpanda.'
+  ],
+  // Checkout indicators (URL or page content)
+  checkoutIndicators: [
+    'checkout', 'cart', 'basket', 'payment', 'order-review',
+    'place-order', 'buy-now', 'purchase'
+  ],
+  // Subscription indicators
+  subscriptionIndicators: [
+    'subscribe', 'premium', 'pricing', 'plans', 'upgrade',
+    'pro-plan', 'membership', 'trial', 'billing'
+  ],
+  // Sale urgency indicators (more specific phrases to avoid false positives)
+  urgencyIndicators: [
+    'limited time offer', 'ends soon', 'last chance', 'only 1 left', 'only 2 left',
+    'only 3 left', 'left in stock', 'selling fast', 'hurry up', 'flash sale',
+    'deal ends in', 'hours left', 'minutes left', 'today only', 'while supplies last',
+    'act now', 'don\'t miss out', 'expires today', 'ending soon', 'almost gone'
+  ],
+  // Time threshold (ms) before triggering time-based intervention
+  timeThreshold: 2 * 60 * 1000, // 2 minutes (for hackathon demo)
+  // Cooldown between interventions (ms)
+  interventionCooldown: 10 * 60 * 1000 // 10 minutes
+};
+
+let pageLoadTime = Date.now();
+let lastInterventionTime = 0;
+let interventionCheckInterval = null;
+let hasShownTimeIntervention = false;
+
+// Check what type of site we're on
+function detectSiteType() {
+  const url = window.location.href.toLowerCase();
+  const hostname = window.location.hostname.toLowerCase();
+
+  for (const site of INTERVENTION_CONFIG.shoppingSites) {
+    if (url.includes(site) || hostname.includes(site)) return 'shopping';
+  }
+  for (const site of INTERVENTION_CONFIG.careerSites) {
+    if (url.includes(site) || hostname.includes(site)) return 'career';
+  }
+  for (const site of INTERVENTION_CONFIG.financeSites) {
+    if (url.includes(site) || hostname.includes(site)) return 'finance';
+  }
+  for (const site of INTERVENTION_CONFIG.socialMediaSites) {
+    if (url.includes(site) || hostname.includes(site)) return 'social';
+  }
+  for (const site of INTERVENTION_CONFIG.foodDeliverySites) {
+    if (url.includes(site) || hostname.includes(site)) return 'food';
+  }
+  return null;
+}
+
+// Check if we're on a subscription page
+function isSubscriptionPage() {
+  const url = window.location.href.toLowerCase();
+  const pageText = document.body?.innerText?.toLowerCase() || '';
+
+  for (const indicator of INTERVENTION_CONFIG.subscriptionIndicators) {
+    if (url.includes(indicator)) return true;
+  }
+
+  // Check for pricing/plan elements
+  const pricingElements = document.querySelectorAll(
+    '[class*="pricing"], [class*="plan"], [class*="subscribe"], ' +
+    '[class*="premium"], [id*="pricing"], [id*="plans"]'
+  );
+
+  return pricingElements.length > 2; // Multiple pricing elements = likely a pricing page
+}
+
+// Check for urgency tactics on page
+function hasUrgencyTactics() {
+  const pageText = document.body?.innerText?.toLowerCase() || '';
+
+  for (const indicator of INTERVENTION_CONFIG.urgencyIndicators) {
+    if (pageText.includes(indicator)) return true;
+  }
+
+  // Check for countdown timers
+  const timerElements = document.querySelectorAll(
+    '[class*="countdown"], [class*="timer"], [class*="clock"], ' +
+    '[class*="hurry"], [class*="urgent"], [data-countdown]'
+  );
+
+  return timerElements.length > 0;
+}
+
+// Check if we're on a checkout page
+function isCheckoutPage() {
+  const url = window.location.href.toLowerCase();
+  const pageText = document.body?.innerText?.toLowerCase() || '';
+
+  for (const indicator of INTERVENTION_CONFIG.checkoutIndicators) {
+    if (url.includes(indicator)) return true;
+  }
+
+  // Check for checkout buttons/forms
+  const checkoutButtons = document.querySelectorAll(
+    'button[class*="checkout"], button[class*="purchase"], ' +
+    'button[class*="buy"], input[value*="Place order"], ' +
+    'button[class*="order"], [data-action*="checkout"]'
+  );
+
+  return checkoutButtons.length > 0;
+}
+
+// Check if this site has been reported as false positive
+async function isReportedFalsePositive(reason) {
+  try {
+    const { falsePositives = [] } = await chrome.storage.local.get(['falsePositives']);
+    const hostname = window.location.hostname;
+
+    // Count reports for this hostname with this reason
+    const reportsForSite = falsePositives.filter(fp =>
+      fp.hostname === hostname && fp.reason === reason
+    );
+
+    // If reported 2+ times, skip this intervention
+    return reportsForSite.length >= 2;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Show intervention nudge
+async function showInterventionNudge(reason, siteType) {
+  // Check cooldown
+  if (Date.now() - lastInterventionTime < INTERVENTION_CONFIG.interventionCooldown) {
+    return;
+  }
+
+  // Don't show if overlay already exists
+  if (blindspotOverlay) return;
+
+  // Check if this site has been reported as false positive
+  if (await isReportedFalsePositive(reason)) {
+    console.log('Blindspot: Skipping intervention - site reported as false positive');
+    return;
+  }
+
+  lastInterventionTime = Date.now();
+
+  const messages = {
+    checkout: {
+      title: "About to checkout?",
+      subtitle: "Let's make sure this is the right decision",
+      icon: "🛒",
+      prompt: "What's driving this purchase? Is it a need or a want?"
+    },
+    time_shopping: {
+      title: "Been browsing for a while",
+      subtitle: "Taking a moment to reflect can help",
+      icon: "⏱️",
+      prompt: "What are you looking for? Have you compared options?"
+    },
+    time_career: {
+      title: "Job hunting check-in",
+      subtitle: "Career decisions deserve careful thought",
+      icon: "💼",
+      prompt: "What's most important to you in your next role?"
+    },
+    time_finance: {
+      title: "Investment check-in",
+      subtitle: "Financial decisions benefit from a clear head",
+      icon: "📊",
+      prompt: "What's your strategy here? Are emotions involved?"
+    },
+    time_social: {
+      title: "Social media check-in",
+      subtitle: "How's this making you feel?",
+      icon: "📱",
+      prompt: "Are you scrolling with purpose or just passing time? How do you feel right now?"
+    },
+    time_food: {
+      title: "Craving check",
+      subtitle: "Is this hunger or something else?",
+      icon: "🍔",
+      prompt: "Are you actually hungry, or is this stress/boredom eating?"
+    },
+    subscription: {
+      title: "Subscription alert",
+      subtitle: "Recurring payments add up fast",
+      icon: "💳",
+      prompt: "Do you really need this? Will you use it in 3 months?"
+    },
+    urgency: {
+      title: "Urgency tactics detected",
+      subtitle: "This page is trying to rush you",
+      icon: "⚠️",
+      prompt: "Would you still want this if there was no time pressure?"
+    },
+    manual: {
+      title: "Bias Check",
+      subtitle: "Good call checking your thinking!",
+      icon: "🧠",
+      prompt: "What decision are you facing right now?"
+    }
+  };
+
+  const key = reason === 'checkout' ? 'checkout' :
+              reason === 'subscription' ? 'subscription' :
+              reason === 'urgency' ? 'urgency' :
+              reason === 'manual' ? 'manual' :
+              `time_${siteType || 'shopping'}`;
+  const msg = messages[key] || messages.manual;
+
+  const nudgeHTML = `
+    <div class="blindspot-intervention">
+      <div class="blindspot-intervention-header">
+        <span class="blindspot-intervention-icon">${msg.icon}</span>
+        <div class="blindspot-intervention-titles">
+          <span class="blindspot-intervention-title">${msg.title}</span>
+          <span class="blindspot-intervention-subtitle">${msg.subtitle}</span>
+        </div>
+        <button class="blindspot-intervention-dismiss" id="blindspot-dismiss-nudge">×</button>
+      </div>
+
+      <div class="blindspot-intervention-body">
+        <textarea
+          id="blindspot-intervention-input"
+          class="blindspot-textarea"
+          placeholder="${msg.prompt}"
+          rows="2"
+        ></textarea>
+      </div>
+
+      <div class="blindspot-intervention-actions">
+        <button class="blindspot-btn blindspot-btn-ghost" id="blindspot-skip-nudge">
+          Skip
+        </button>
+        <button class="blindspot-btn blindspot-btn-ghost blindspot-btn-report" id="blindspot-report-false"
+          data-reason="${reason}" data-site="${siteType || 'unknown'}" data-url="${window.location.hostname}">
+          👎 Wrong
+        </button>
+        <button class="blindspot-btn blindspot-btn-primary" id="blindspot-check-nudge">
+          🧠 Check
+        </button>
+      </div>
+    </div>
+  `;
+
+  const nudgeContainer = document.createElement('div');
+  nudgeContainer.id = 'blindspot-nudge-container';
+  nudgeContainer.innerHTML = nudgeHTML;
+  document.body.appendChild(nudgeContainer);
+
+  // Animate in
+  requestAnimationFrame(() => {
+    nudgeContainer.classList.add('visible');
+  });
+
+  // Focus input
+  setTimeout(() => {
+    document.getElementById('blindspot-intervention-input')?.focus();
+  }, 300);
+}
+
+// Remove intervention nudge
+function removeInterventionNudge() {
+  const nudge = document.getElementById('blindspot-nudge-container');
+  if (nudge) {
+    nudge.classList.remove('visible');
+    setTimeout(() => nudge.remove(), 300);
+  }
+}
+
+// Handle intervention action
+function handleInterventionCheck() {
+  const input = document.getElementById('blindspot-intervention-input');
+  const userContext = input?.value?.trim() || '';
+
+  removeInterventionNudge();
+
+  // Show loading and trigger analysis with screenshot
+  showOverlay(createLoadingUI('', true));
+
+  chrome.runtime.sendMessage({
+    action: 'analyzeFromContent',
+    text: '',
+    userContext: userContext || 'User triggered a bias check while browsing',
+    withScreenshot: true,
+    screenshotOnly: true
+  }).catch(err => {
+    console.error('Blindspot: Intervention analysis failed', err);
+    showOverlay(createErrorUI('Failed to analyze. Please try again.'));
+  });
+}
+
+// Event listeners for intervention nudge
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'blindspot-dismiss-nudge' || e.target.id === 'blindspot-skip-nudge') {
+    removeInterventionNudge();
+  }
+  if (e.target.id === 'blindspot-check-nudge') {
+    handleInterventionCheck();
+  }
+  if (e.target.id === 'blindspot-report-false') {
+    reportFalsePositive(e.target);
+  }
+});
+
+// Report false positive intervention
+async function reportFalsePositive(btn) {
+  const reason = btn.dataset.reason;
+  const site = btn.dataset.site;
+  const url = btn.dataset.url;
+
+  try {
+    // Get existing false positives
+    const { falsePositives = [] } = await chrome.storage.local.get(['falsePositives']);
+
+    // Add this report
+    falsePositives.push({
+      timestamp: Date.now(),
+      reason: reason,
+      siteType: site,
+      hostname: url,
+      fullUrl: window.location.href
+    });
+
+    // Keep last 100 reports
+    const trimmed = falsePositives.slice(-100);
+    await chrome.storage.local.set({ falsePositives: trimmed });
+
+    // Show feedback
+    btn.textContent = '✓ Reported';
+    btn.disabled = true;
+    btn.style.color = '#10b981';
+
+    // Close nudge after brief delay
+    setTimeout(() => {
+      removeInterventionNudge();
+    }, 1000);
+
+    console.log('Blindspot: False positive reported', { reason, site, url });
+  } catch (e) {
+    console.error('Blindspot: Failed to report false positive', e);
+  }
+}
+
+// Enter key in intervention input
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'blindspot-intervention-input') {
+    e.preventDefault();
+    handleInterventionCheck();
+  }
+});
+
+// Keyboard shortcut: Ctrl+Shift+B for manual intervention
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'B') {
+    e.preventDefault();
+    showInterventionNudge('manual', null);
+  }
+});
+
+// Start monitoring for interventions
+async function startInterventionMonitoring() {
+  if (!isExtensionContextValid()) return;
+
+  // Check if interventions are enabled
+  try {
+    const { interventionSettings } = await chrome.storage.local.get(['interventionSettings']);
+    const settings = interventionSettings || {
+      enabled: true,
+      shopping: true,
+      social: true,
+      food: true,
+      subscription: true,
+      urgency: true,
+      careerFinance: true
+    };
+
+    if (!settings.enabled) return;
+
+    const siteType = detectSiteType();
+
+    // Check if this site type is enabled
+    const siteEnabled = {
+      'shopping': settings.shopping,
+      'social': settings.social,
+      'food': settings.food,
+      'career': settings.careerFinance,
+      'finance': settings.careerFinance
+    };
+
+    // Checkout detection (highest priority) - part of shopping
+    if (settings.shopping && isCheckoutPage()) {
+      setTimeout(async () => {
+        await showInterventionNudge('checkout', siteType);
+      }, 2000);
+      return;
+    }
+
+    // Subscription page detection
+    if (settings.subscription && isSubscriptionPage()) {
+      setTimeout(async () => {
+        await showInterventionNudge('subscription', siteType);
+      }, 2500);
+      return;
+    }
+
+    // Urgency tactics detection (only on shopping sites)
+    if (settings.urgency && siteType === 'shopping') {
+      setTimeout(async () => {
+        if (hasUrgencyTactics() && !hasShownTimeIntervention) {
+          hasShownTimeIntervention = true;
+          await showInterventionNudge('urgency', siteType);
+        }
+      }, 3000);
+    }
+
+    // Time-based check for decision-heavy sites (only if that site type is enabled)
+    if (siteType && siteEnabled[siteType]) {
+      interventionCheckInterval = setInterval(async () => {
+        if (hasShownTimeIntervention) return;
+
+        const timeOnPage = Date.now() - pageLoadTime;
+        if (timeOnPage >= INTERVENTION_CONFIG.timeThreshold) {
+          hasShownTimeIntervention = true;
+          await showInterventionNudge('time', siteType);
+        }
+      }, 30000); // Check every 30 seconds
+    }
+  } catch (e) {
+    console.error('Blindspot: Failed to start intervention monitoring', e);
+  }
+}
+
+// Initialize intervention system
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startInterventionMonitoring);
+} else {
+  startInterventionMonitoring();
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  if (interventionCheckInterval) {
+    clearInterval(interventionCheckInterval);
+  }
+});

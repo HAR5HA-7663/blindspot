@@ -39,18 +39,19 @@ async function saveInsight(analysis, userContext, pageUrl) {
 
 async function updateLearnedPatterns(journal) {
   // Analyze patterns across all insights
-  const biasFrequency = {};
+  const biasFrequency = {};  // Count of analyses containing each bias (not total detections)
   const contextPatterns = {};
   let totalAnalyses = journal.length;
 
   journal.forEach(insight => {
-    // Count bias occurrences
-    insight.biasesDetected.forEach(b => {
-      biasFrequency[b.bias] = (biasFrequency[b.bias] || 0) + 1;
+    // Count unique biases per analysis (use Set to avoid counting same bias twice in one analysis)
+    const uniqueBiases = new Set(insight.biasesDetected.map(b => b.bias));
+    uniqueBiases.forEach(bias => {
+      biasFrequency[bias] = (biasFrequency[bias] || 0) + 1;
     });
 
     // Track context patterns (what types of decisions)
-    const context = insight.userContext.toLowerCase();
+    const context = (insight.userContext || '').toLowerCase();
     if (context.includes('buy') || context.includes('purchase') || context.includes('spend')) {
       contextPatterns['purchase_decisions'] = (contextPatterns['purchase_decisions'] || 0) + 1;
     }
@@ -62,14 +63,13 @@ async function updateLearnedPatterns(journal) {
     }
   });
 
-  // Find most common biases (occurring in >20% of analyses)
+  // Find most common biases (show all that occurred, sorted by frequency)
   const frequentBiases = Object.entries(biasFrequency)
-    .filter(([_, count]) => count / totalAnalyses >= 0.2)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([bias, count]) => ({
       bias,
-      frequency: Math.round((count / totalAnalyses) * 100)
+      frequency: totalAnalyses > 0 ? Math.round((count / totalAnalyses) * 100) : 0
     }));
 
   // Find most common decision contexts

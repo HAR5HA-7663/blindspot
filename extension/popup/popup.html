@@ -195,39 +195,197 @@
     <!-- MAIN VIEW (after onboarding) -->
     <div id="main-view" class="view hidden">
       <main class="popup-main">
-        <!-- Quick Analyze Section -->
-        <section class="section">
-          <label class="label" for="quick-text">Quick Analysis</label>
-          <textarea
-            id="quick-text"
-            placeholder="Paste your reasoning here to analyze for biases..."
-            rows="4"
-          ></textarea>
-          <button id="analyze-btn" class="btn btn-primary">
-            <span id="analyze-text">Analyze</span>
-            <span id="analyze-loading" class="hidden">Analyzing...</span>
-          </button>
+        <!-- Stats Cards -->
+        <section class="stats-section" id="stats-section">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="stat-analyses">0</div>
+              <div class="stat-label">Analyses</div>
+            </div>
+            <div class="stat-card stat-highlight">
+              <div class="stat-value" id="stat-biases">0</div>
+              <div class="stat-label">Biases Caught</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-streak">0</div>
+              <div class="stat-label">Day Streak</div>
+            </div>
+          </div>
         </section>
 
-        <!-- Results Section -->
-        <section class="section hidden" id="results-section">
-          <div class="results-header">
-            <span class="results-title">Results</span>
-            <span class="quality-badge" id="quality-badge"></span>
-          </div>
-          <div id="results-content"></div>
-        </section>
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+          <button class="tab-btn active" data-tab="analyze">Analyze</button>
+          <button class="tab-btn" data-tab="history">History</button>
+          <button class="tab-btn" data-tab="intervene">Intervene</button>
+        </div>
 
-        <!-- Learned Patterns Section -->
-        <section class="section hidden" id="insights-section">
-          <div class="insights-header">
-            <span class="insights-title">📊 Your Patterns</span>
-            <span class="insights-count" id="insights-count"></span>
+        <!-- Analyze Tab -->
+        <div class="tab-content active" id="tab-analyze">
+          <!-- Quick Analyze Section -->
+          <section class="section">
+            <label class="label" for="quick-text">Quick Analysis</label>
+            <textarea
+              id="quick-text"
+              placeholder="Paste your reasoning here to analyze for biases..."
+              rows="4"
+            ></textarea>
+            <button id="analyze-btn" class="btn btn-primary">
+              <span id="analyze-text">Analyze</span>
+              <span id="analyze-loading" class="hidden">Analyzing...</span>
+            </button>
+          </section>
+
+          <!-- Results Section -->
+          <section class="section hidden" id="results-section">
+            <div class="results-header">
+              <span class="results-title">Results</span>
+              <span class="quality-badge" id="quality-badge"></span>
+            </div>
+            <div id="results-content"></div>
+          </section>
+        </div>
+
+        <!-- History Tab -->
+        <div class="tab-content" id="tab-history">
+          <div class="history-header">
+            <span class="history-title">Decision History</span>
+            <button class="btn-icon" id="btn-clear-history" title="Clear History">🗑️</button>
           </div>
-          <div id="insights-content">
-            <div class="insights-loading">Loading insights...</div>
+          <div id="history-list">
+            <div class="history-empty">
+              <span class="empty-icon">📝</span>
+              <p>No analyses yet</p>
+              <p class="hint">Start analyzing to build your history</p>
+            </div>
           </div>
-        </section>
+        </div>
+
+        <!-- Intervene Tab -->
+        <div class="tab-content" id="tab-intervene">
+          <div class="intervene-header">
+            <span class="intervene-title">Intervention Settings</span>
+          </div>
+
+          <!-- Master Toggle -->
+          <div class="setting-card setting-master">
+            <div class="setting-info">
+              <span class="setting-icon">🛡️</span>
+              <div class="setting-text">
+                <span class="setting-name">Proactive Interventions</span>
+                <span class="setting-desc">Get nudged before making biased decisions</span>
+              </div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="setting-interventions-enabled" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <!-- Individual Settings -->
+          <div class="settings-group" id="intervention-settings-group">
+            <div class="setting-card">
+              <div class="setting-info">
+                <span class="setting-icon">🛒</span>
+                <div class="setting-text">
+                  <span class="setting-name">Shopping & Checkout</span>
+                  <span class="setting-desc">Amazon, eBay, cart pages</span>
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setting-shopping" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-card">
+              <div class="setting-info">
+                <span class="setting-icon">📱</span>
+                <div class="setting-text">
+                  <span class="setting-name">Social Media</span>
+                  <span class="setting-desc">Twitter, Instagram, TikTok, Reddit</span>
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setting-social" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-card">
+              <div class="setting-info">
+                <span class="setting-icon">🍔</span>
+                <div class="setting-text">
+                  <span class="setting-name">Food Delivery</span>
+                  <span class="setting-desc">DoorDash, UberEats, Grubhub</span>
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setting-food" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-card">
+              <div class="setting-info">
+                <span class="setting-icon">💳</span>
+                <div class="setting-text">
+                  <span class="setting-name">Subscriptions</span>
+                  <span class="setting-desc">Pricing & signup pages</span>
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setting-subscription" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-card">
+              <div class="setting-info">
+                <span class="setting-icon">⚠️</span>
+                <div class="setting-text">
+                  <span class="setting-name">Urgency Tactics</span>
+                  <span class="setting-desc">Countdown timers, "limited time"</span>
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setting-urgency" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-card">
+              <div class="setting-info">
+                <span class="setting-icon">💼</span>
+                <div class="setting-text">
+                  <span class="setting-name">Career & Finance</span>
+                  <span class="setting-desc">Job sites, investment platforms</span>
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="setting-career-finance" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Keyboard Shortcut Info -->
+          <div class="shortcut-info">
+            <span class="shortcut-label">Manual Trigger:</span>
+            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>
+          </div>
+
+          <!-- Patterns Section (moved here) -->
+          <section class="section" id="insights-section">
+            <div class="insights-header">
+              <span class="insights-title">📊 Your Patterns</span>
+              <span class="insights-count" id="insights-count"></span>
+            </div>
+            <div id="insights-content">
+              <div class="insights-loading">Loading insights...</div>
+            </div>
+          </section>
+        </div>
 
         <!-- How to Use -->
         <section class="section how-to">

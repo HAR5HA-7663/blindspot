@@ -53,6 +53,23 @@ function setupEventListeners() {
   document.getElementById('btn-edit-profile')?.addEventListener('click', showEditProfile);
   document.getElementById('btn-reset')?.addEventListener('click', resetOnboarding);
 
+  // Tab Navigation
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // History
+  document.getElementById('btn-clear-history')?.addEventListener('click', clearHistory);
+
+  // Intervention Settings
+  document.getElementById('setting-interventions-enabled')?.addEventListener('change', saveInterventionSettings);
+  document.getElementById('setting-shopping')?.addEventListener('change', saveInterventionSettings);
+  document.getElementById('setting-social')?.addEventListener('change', saveInterventionSettings);
+  document.getElementById('setting-food')?.addEventListener('change', saveInterventionSettings);
+  document.getElementById('setting-subscription')?.addEventListener('change', saveInterventionSettings);
+  document.getElementById('setting-urgency')?.addEventListener('change', saveInterventionSettings);
+  document.getElementById('setting-career-finance')?.addEventListener('change', saveInterventionSettings);
+
   // Edit Profile View
   document.getElementById('btn-cancel-edit')?.addEventListener('click', showMainView);
   document.getElementById('btn-save-profile')?.addEventListener('click', saveProfile);
@@ -71,8 +88,249 @@ function showMainView() {
   document.getElementById('main-view').classList.remove('hidden');
   document.getElementById('edit-profile-view').classList.add('hidden');
 
-  // Load and display learned patterns
+  // Load stats, patterns, history, and intervention settings
+  loadStats();
   loadInsights();
+  loadHistory();
+  loadInterventionSettings();
+}
+
+// ============ TAB NAVIGATION ============
+
+function switchTab(tabName) {
+  // Update tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+
+  // Update tab content
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.toggle('active', content.id === `tab-${tabName}`);
+  });
+}
+
+// ============ STATS ============
+
+async function loadStats() {
+  try {
+    const { learnedPatterns, insightsJournal = [], streakData } = await chrome.storage.local.get([
+      'learnedPatterns',
+      'insightsJournal',
+      'streakData'
+    ]);
+
+    // Total analyses
+    const totalAnalyses = learnedPatterns?.totalAnalyses || 0;
+    document.getElementById('stat-analyses').textContent = totalAnalyses;
+
+    // Total biases caught
+    const totalBiases = insightsJournal.reduce((sum, entry) =>
+      sum + (entry.biasesDetected?.length || 0), 0);
+    document.getElementById('stat-biases').textContent = totalBiases;
+
+    // Calculate streak
+    const streak = calculateStreak(insightsJournal, streakData);
+    document.getElementById('stat-streak').textContent = streak;
+
+  } catch (e) {
+    console.error('Failed to load stats:', e);
+  }
+}
+
+function calculateStreak(journal, streakData) {
+  if (!journal || journal.length === 0) return 0;
+
+  // Get dates of analyses
+  const dates = journal
+    .map(entry => {
+      const d = new Date(entry.timestamp);
+      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    })
+    .filter((v, i, a) => a.indexOf(v) === i) // unique dates
+    .sort()
+    .reverse();
+
+  if (dates.length === 0) return 0;
+
+  // Check if today or yesterday had analysis
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = `${yesterday.getFullYear()}-${yesterday.getMonth()}-${yesterday.getDate()}`;
+
+  if (dates[0] !== todayStr && dates[0] !== yesterdayStr) {
+    return 0; // Streak broken
+  }
+
+  // Count consecutive days
+  let streak = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const prevDate = new Date(dates[i - 1].replace(/-/g, '/'));
+    const currDate = new Date(dates[i].replace(/-/g, '/'));
+    const diffDays = Math.floor((prevDate - currDate) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+// ============ HISTORY ============
+
+async function loadHistory() {
+  const historyList = document.getElementById('history-list');
+
+  try {
+    const { insightsJournal = [] } = await chrome.storage.local.get(['insightsJournal']);
+
+    if (insightsJournal.length === 0) {
+      historyList.innerHTML = `
+        <div class="history-empty">
+          <span class="empty-icon">📝</span>
+          <p>No analyses yet</p>
+          <p class="hint">Start analyzing to build your history</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Sort by most recent first
+    const sorted = [...insightsJournal].sort((a, b) =>
+      new Date(b.timestamp) - new Date(a.timestamp)
+    );
+
+    historyList.innerHTML = sorted.map((entry, index) => {
+      const date = new Date(entry.timestamp);
+      const timeAgo = getTimeAgo(date);
+      const biasCount = entry.biasesDetected?.length || 0;
+      const quality = entry.thinkingQuality || entry.quality || 'analyzed';
+      const preview = entry.overallAssessment || entry.textPreview || 'Analysis';
+      const context = entry.userContext || entry.context || '';
+
+      return `
+        <div class="history-item" data-index="${index}">
+          <div class="history-item-header">
+            <span class="history-time">${timeAgo}</span>
+            <span class="history-badge badge-${quality}">${quality}</span>
+          </div>
+          <div class="history-preview">${escapeHtml(preview)}</div>
+          <div class="history-meta">
+            ${biasCount > 0
+              ? `<span class="history-biases">⚠️ ${biasCount} bias${biasCount > 1 ? 'es' : ''}</span>`
+              : '<span class="history-clean">✓ Clean</span>'
+            }
+            ${context ? `<span class="history-context">${escapeHtml(context.substring(0, 30))}${context.length > 30 ? '...' : ''}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (e) {
+    console.error('Failed to load history:', e);
+    historyList.innerHTML = `<div class="history-empty"><p>Failed to load history</p></div>`;
+  }
+}
+
+function getTimeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+async function clearHistory() {
+  if (confirm('Clear all analysis history? This cannot be undone.')) {
+    await chrome.storage.local.remove(['insightsJournal']);
+    await chrome.storage.local.set({
+      learnedPatterns: {
+        totalAnalyses: 0,
+        biasFrequency: {},
+        contextCategories: {}
+      }
+    });
+    loadStats();
+    loadHistory();
+    loadInsights();
+  }
+}
+
+// ============ INTERVENTION SETTINGS ============
+
+async function loadInterventionSettings() {
+  try {
+    const { interventionSettings } = await chrome.storage.local.get(['interventionSettings']);
+    const settings = interventionSettings || {
+      enabled: true,
+      shopping: true,
+      social: true,
+      food: true,
+      subscription: true,
+      urgency: true,
+      careerFinance: true
+    };
+
+    document.getElementById('setting-interventions-enabled').checked = settings.enabled;
+    document.getElementById('setting-shopping').checked = settings.shopping !== false;
+    document.getElementById('setting-social').checked = settings.social !== false;
+    document.getElementById('setting-food').checked = settings.food !== false;
+    document.getElementById('setting-subscription').checked = settings.subscription !== false;
+    document.getElementById('setting-urgency').checked = settings.urgency !== false;
+    document.getElementById('setting-career-finance').checked = settings.careerFinance !== false;
+
+    // Update UI state
+    updateInterventionSettingsUI(settings.enabled);
+  } catch (e) {
+    console.error('Failed to load intervention settings:', e);
+  }
+}
+
+async function saveInterventionSettings() {
+  const settings = {
+    enabled: document.getElementById('setting-interventions-enabled').checked,
+    shopping: document.getElementById('setting-shopping').checked,
+    social: document.getElementById('setting-social').checked,
+    food: document.getElementById('setting-food').checked,
+    subscription: document.getElementById('setting-subscription').checked,
+    urgency: document.getElementById('setting-urgency').checked,
+    careerFinance: document.getElementById('setting-career-finance').checked
+  };
+
+  try {
+    await chrome.storage.local.set({ interventionSettings: settings });
+    updateInterventionSettingsUI(settings.enabled);
+  } catch (e) {
+    console.error('Failed to save intervention settings:', e);
+  }
+}
+
+function updateInterventionSettingsUI(enabled) {
+  const settingsGroup = document.getElementById('intervention-settings-group');
+  if (settingsGroup) {
+    settingsGroup.style.opacity = enabled ? '1' : '0.5';
+    settingsGroup.style.pointerEvents = enabled ? 'auto' : 'none';
+  }
 }
 
 // ============ INSIGHTS / LEARNED PATTERNS ============
