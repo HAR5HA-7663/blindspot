@@ -71,7 +71,9 @@
   max-width: 560px;
   width: 92%;
   max-height: 85vh;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   animation: modal-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -127,6 +129,9 @@
 
 .blindspot-content {
   padding: 32px;
+  overflow-y: auto;
+  flex: 1;
+  max-height: calc(85vh - 60px);
 }
 
 /* Logo */
@@ -198,13 +203,43 @@
 
 .blindspot-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border-subtle);
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-right: 40px; /* Space for close button */
 }
 
+/* Quality Section - Below header */
+.blindspot-quality-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  flex-wrap: wrap;
+}
+
+.blindspot-quality-badge {
+  font-family: var(--font-mono);
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--void);
+}
+
+.blindspot-quality-desc {
+  color: var(--text-secondary);
+  font-size: 13px;
+  flex: 1;
+}
+
+/* Old quality badge (keep for backward compat) */
 .blindspot-quality {
   font-family: var(--font-mono);
   padding: 8px 14px;
@@ -521,4 +556,124 @@
   color: var(--text-muted);
   margin-top: 8px;
   font-style: italic;
+}
+
+/* Info Button & Tooltip */
+.blindspot-info-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: var(--border);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.blindspot-info-btn:hover {
+  background: var(--accent);
+}
+
+.blindspot-info-btn:hover .blindspot-info-icon {
+  color: var(--void);
+}
+
+.blindspot-info-icon {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.blindspot-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: all 0.2s ease;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.blindspot-tooltip.tooltip-left {
+  right: auto;
+  left: 0;
+}
+
+.blindspot-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.blindspot-tooltip strong {
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.blindspot-tooltip .conf-high,
+.blindspot-tooltip .qual-poor {
+  color: var(--danger);
+}
+
+.blindspot-tooltip .conf-medium,
+.blindspot-tooltip .qual-fair {
+  color: var(--warning);
+}
+
+.blindspot-tooltip .conf-low {
+  color: #94a3b8;
+}
+
+.blindspot-tooltip .qual-good {
+  color: #22c55e;
+}
+
+.blindspot-tooltip .qual-excellent {
+  color: var(--success);
+}
+
+/* Confidence wrap for bias cards */
+.blindspot-confidence-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Scrollbar styling for content */
+.blindspot-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.blindspot-content::-webkit-scrollbar-track {
+  background: var(--deep);
+  border-radius: 3px;
+}
+
+.blindspot-content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.blindspot-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

@@ -15,11 +15,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ received: true });
       break;
     case "showAnalysis":
-      showOverlay(createAnalysisUI(message.analysis, message.originalText));
+      // Force remove any existing overlay first
+      removeOverlay();
+      // Small delay to ensure clean slate
+      setTimeout(() => {
+        showOverlay(createAnalysisUI(message.analysis, message.originalText));
+      }, 50);
       sendResponse({ received: true });
       break;
     case "showError":
-      showOverlay(createErrorUI(message.error));
+      removeOverlay();
+      setTimeout(() => {
+        showOverlay(createErrorUI(message.error));
+      }, 50);
       sendResponse({ received: true });
       break;
   }
@@ -27,6 +35,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 function showOverlay(content) {
+  // Always remove existing overlay first
   removeOverlay();
 
   blindspotOverlay = document.createElement('div');
@@ -55,6 +64,28 @@ function showOverlay(content) {
   if (contextInput) {
     setTimeout(() => contextInput.focus(), 100);
   }
+
+  // Setup tooltip handlers
+  setupTooltips();
+}
+
+function setupTooltips() {
+  document.querySelectorAll('.blindspot-info-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const tooltip = btn.querySelector('.blindspot-tooltip');
+      if (tooltip) {
+        tooltip.classList.toggle('visible');
+      }
+    });
+  });
+
+  // Close tooltips when clicking elsewhere
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.blindspot-tooltip.visible').forEach(t => {
+      t.classList.remove('visible');
+    });
+  });
 }
 
 function handleEscape(e) {
@@ -69,6 +100,9 @@ function removeOverlay() {
     blindspotOverlay = null;
     document.removeEventListener('keydown', handleEscape);
   }
+  // Also remove any orphaned overlays
+  const orphans = document.querySelectorAll('#blindspot-overlay');
+  orphans.forEach(el => el.remove());
 }
 
 // NEW: Context prompt UI - asks user what decision they're facing
@@ -131,14 +165,15 @@ function createAnalysisUI(analysis, originalText) {
   const biases = analysis.biases_detected || [];
   const hasBiases = biases.length > 0;
 
-  const qualityColors = {
-    'poor': '#ef4444',
-    'fair': '#f59e0b',
-    'good': '#22c55e',
-    'excellent': '#10b981'
+  const qualityInfo = {
+    'poor': { color: '#ef4444', desc: 'Significant bias detected - reconsider your reasoning' },
+    'fair': { color: '#f59e0b', desc: 'Some bias present - room for improvement' },
+    'good': { color: '#22c55e', desc: 'Mostly balanced thinking with minor issues' },
+    'excellent': { color: '#10b981', desc: 'Well-reasoned and balanced thinking' }
   };
 
-  const qualityColor = qualityColors[analysis.thinking_quality] || '#6b7280';
+  const quality = analysis.thinking_quality || 'fair';
+  const qualityData = qualityInfo[quality] || qualityInfo['fair'];
 
   let biasesHTML = '';
 
@@ -147,7 +182,18 @@ function createAnalysisUI(analysis, originalText) {
       <div class="blindspot-bias-card">
         <div class="blindspot-bias-header">
           <span class="blindspot-bias-name">${formatBiasName(bias.bias)}</span>
-          <span class="blindspot-confidence blindspot-confidence-${bias.confidence}">${bias.confidence}</span>
+          <div class="blindspot-confidence-wrap">
+            <span class="blindspot-confidence blindspot-confidence-${bias.confidence}">${bias.confidence}</span>
+            <button class="blindspot-info-btn" type="button" aria-label="Info">
+              <span class="blindspot-info-icon">i</span>
+              <div class="blindspot-tooltip">
+                <strong>Confidence Levels:</strong><br>
+                <span class="conf-high">High</span> - Strong evidence of this bias<br>
+                <span class="conf-medium">Medium</span> - Likely present<br>
+                <span class="conf-low">Low</span> - Possible but uncertain
+              </div>
+            </button>
+          </div>
         </div>
         <div class="blindspot-trigger">
           <span class="blindspot-label">Trigger:</span>
@@ -176,11 +222,25 @@ function createAnalysisUI(analysis, originalText) {
       <div class="blindspot-header">
         <div class="blindspot-logo">
           <span class="blindspot-icon">🧠</span>
-          <span class="blindspot-title">Blindspot Analysis</span>
+          <span class="blindspot-title">Analysis</span>
         </div>
-        <div class="blindspot-quality" style="background-color: ${qualityColor}">
-          ${analysis.thinking_quality || 'analyzed'}
+      </div>
+
+      <div class="blindspot-quality-section">
+        <div class="blindspot-quality-badge" style="background-color: ${qualityData.color}">
+          ${quality}
         </div>
+        <button class="blindspot-info-btn" type="button" aria-label="Info">
+          <span class="blindspot-info-icon">i</span>
+          <div class="blindspot-tooltip tooltip-left">
+            <strong>Thinking Quality:</strong><br>
+            <span class="qual-excellent">Excellent</span> - Well-reasoned<br>
+            <span class="qual-good">Good</span> - Mostly balanced<br>
+            <span class="qual-fair">Fair</span> - Some bias present<br>
+            <span class="qual-poor">Poor</span> - Significant bias
+          </div>
+        </button>
+        <span class="blindspot-quality-desc">${qualityData.desc}</span>
       </div>
 
       <div class="blindspot-summary">
