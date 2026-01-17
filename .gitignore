@@ -32,3 +32,9 @@ npm-debug.log*
 # API Keys - NEVER COMMIT
 config.js
 secrets.js
+
+# Claude Code / AI assistant files
+.claude/
+CLAUDE.md
+DEMO_GUIDE.txt
+TECHNICAL_QA.md
