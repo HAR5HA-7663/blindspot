@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Blindspot",
+  "version": "1.0.0",
+  "description": "Catch your brain's cognitive biases before you make bad decisions",
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://api.anthropic.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  }
+}

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blindspot</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <div class="logo">
+        <span class="logo-icon">🧠</span>
+        <span class="logo-text">Blindspot</span>
+      </div>
+      <p class="tagline">Catch your cognitive biases</p>
+    </header>
+
+    <main class="popup-main">
+      <!-- API Key Section -->
+      <section class="section" id="api-section">
+        <label class="label" for="api-key">Claude API Key</label>
+        <div class="input-group">
+          <input
+            type="password"
+            id="api-key"
+            placeholder="sk-ant-..."
+            autocomplete="off"
+          >
+          <button id="toggle-key" class="icon-btn" title="Show/Hide">
+            👁️
+          </button>
+        </div>
+        <button id="save-key" class="btn btn-primary">Save Key</button>
+        <p class="status" id="key-status"></p>
+      </section>
+
+      <!-- Quick Analyze Section -->
+      <section class="section">
+        <label class="label" for="quick-text">Quick Analysis</label>
+        <textarea
+          id="quick-text"
+          placeholder="Paste your reasoning here to analyze for biases..."
+          rows="4"
+        ></textarea>
+        <button id="analyze-btn" class="btn btn-secondary">
+          <span id="analyze-text">Analyze</span>
+          <span id="analyze-loading" class="hidden">Analyzing...</span>
+        </button>
+      </section>
+
+      <!-- Results Section -->
+      <section class="section hidden" id="results-section">
+        <div class="results-header">
+          <span class="results-title">Results</span>
+          <span class="quality-badge" id="quality-badge"></span>
+        </div>
+        <div id="results-content"></div>
+      </section>
+
+      <!-- How to Use -->
+      <section class="section how-to">
+        <h3>How to Use</h3>
+        <ol>
+          <li>Select text on any webpage</li>
+          <li>Right-click → "Analyze with Blindspot"</li>
+          <li>Review detected biases and reframes</li>
+        </ol>
+      </section>
+    </main>
+
+    <footer class="popup-footer">
+      <span>Aurora Hackathon 2025</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
