@@ -127,18 +127,25 @@ async function sendToTab(tabId, message) {
 // Capture screenshot of visible tab
 async function captureScreenshot(tabId) {
   try {
-    const tabInfo = pendingAnalysis[tabId];
-    if (!tabInfo) {
-      throw new Error("No tab info available for screenshot");
+    // Get fresh tab info
+    const tab = await chrome.tabs.get(tabId);
+
+    // Check if it's a page we can capture
+    if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://') || tab.url?.startsWith('edge://')) {
+      throw new Error("Cannot capture screenshots on browser internal pages.");
     }
-    const dataUrl = await chrome.tabs.captureVisibleTab(tabInfo.windowId, {
+
+    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
       format: 'jpeg',
       quality: 80
     });
     return dataUrl;
   } catch (error) {
     console.error("Screenshot capture failed:", error);
-    throw new Error("Could not capture screenshot. Please try text-only analysis.");
+    if (error.message.includes('Cannot capture')) {
+      throw error;
+    }
+    throw new Error("Could not capture screenshot. Make sure the tab is visible and try again.");
   }
 }
 
