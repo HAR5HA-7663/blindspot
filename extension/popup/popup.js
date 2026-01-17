@@ -5,18 +5,58 @@ let collectedData = {};
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', async () => {
-  // Check if onboarding is complete
-  const response = await chrome.runtime.sendMessage({ action: 'checkOnboarding' });
+  // Set up all event listeners first
+  setupEventListeners();
 
-  if (response.onboardingComplete) {
-    showMainView();
-  } else {
+  // Check if onboarding is complete
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'checkOnboarding' });
+    if (response && response.onboardingComplete) {
+      showMainView();
+    } else {
+      showOnboardingView();
+    }
+  } catch (error) {
+    console.log('First run, showing onboarding');
     showOnboardingView();
   }
-
-  // Set up analyze button
-  document.getElementById('analyze-btn')?.addEventListener('click', handleAnalyze);
 });
+
+// ============ EVENT LISTENERS ============
+
+function setupEventListeners() {
+  // Step 1: Get Started button
+  document.getElementById('btn-get-started')?.addEventListener('click', () => nextStep(2));
+
+  // Step 2: API Key
+  document.getElementById('btn-back-to-1')?.addEventListener('click', () => nextStep(1));
+  document.getElementById('btn-validate-api')?.addEventListener('click', validateAndNext);
+  document.getElementById('toggle-api-key')?.addEventListener('click', toggleApiKey);
+
+  // Step 3: Personal Info
+  document.getElementById('btn-back-to-2')?.addEventListener('click', () => nextStep(2));
+  document.getElementById('btn-to-step-4')?.addEventListener('click', () => nextStep(4));
+
+  // Step 4: Thinking Patterns
+  document.getElementById('btn-back-to-3')?.addEventListener('click', () => nextStep(3));
+  document.getElementById('btn-to-step-5')?.addEventListener('click', () => nextStep(5));
+
+  // Step 5: Goals
+  document.getElementById('btn-back-to-4')?.addEventListener('click', () => nextStep(4));
+  document.getElementById('btn-complete')?.addEventListener('click', completeOnboarding);
+
+  // Step 6: Complete
+  document.getElementById('btn-start-using')?.addEventListener('click', showMainView);
+
+  // Main View
+  document.getElementById('analyze-btn')?.addEventListener('click', handleAnalyze);
+  document.getElementById('btn-edit-profile')?.addEventListener('click', showEditProfile);
+  document.getElementById('btn-reset')?.addEventListener('click', resetOnboarding);
+
+  // Edit Profile View
+  document.getElementById('btn-cancel-edit')?.addEventListener('click', showMainView);
+  document.getElementById('btn-save-profile')?.addEventListener('click', saveProfile);
+}
 
 // ============ VIEW MANAGEMENT ============
 
@@ -45,10 +85,16 @@ function showEditProfile() {
 
 function nextStep(step) {
   // Hide current step
-  document.getElementById(`step-${currentStep}`).classList.add('hidden');
+  const currentStepEl = document.getElementById(`step-${currentStep}`);
+  if (currentStepEl) {
+    currentStepEl.classList.add('hidden');
+  }
 
   // Show new step
-  document.getElementById(`step-${step}`).classList.remove('hidden');
+  const newStepEl = document.getElementById(`step-${step}`);
+  if (newStepEl) {
+    newStepEl.classList.remove('hidden');
+  }
 
   // Update progress dots
   updateProgressDots(step);
@@ -66,16 +112,18 @@ function updateProgressDots(step) {
 
   // Hide dots on completion step
   const progressDots = document.getElementById('progress-dots');
-  if (step === 6) {
-    progressDots.classList.add('hidden');
-  } else {
-    progressDots.classList.remove('hidden');
+  if (progressDots) {
+    if (step === 6) {
+      progressDots.classList.add('hidden');
+    } else {
+      progressDots.classList.remove('hidden');
+    }
   }
 }
 
 function toggleApiKey() {
   const input = document.getElementById('api-key');
-  const btn = document.querySelector('.toggle-btn');
+  const btn = document.getElementById('toggle-api-key');
   if (input.type === 'password') {
     input.type = 'text';
     btn.textContent = '🙈';
@@ -280,10 +328,10 @@ function displayResults(analysis) {
 
   if (biases.length === 0) {
     resultsContent.innerHTML = `
-      <div style="text-align: center; color: #059669;">
+      <div style="text-align: center; color: var(--success);">
         ✓ No significant biases detected!
       </div>
-      <p style="margin-top: 8px; color: #6b7280; font-size: 12px;">
+      <p style="margin-top: 8px; color: var(--text-secondary); font-size: 12px;">
         ${analysis.overall_assessment}
       </p>
     `;
@@ -291,7 +339,7 @@ function displayResults(analysis) {
     resultsContent.innerHTML = biases.map(bias => `
       <div class="bias-item">
         <div class="bias-name">⚠️ ${formatBiasName(bias.bias)}</div>
-        <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">
+        <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 4px;">
           ${bias.explanation}
         </div>
         <div class="bias-reframe">
