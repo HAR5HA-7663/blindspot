@@ -25,6 +25,22 @@
     }
   ],
   "action": {
-    "default_popup": "popup/popup.html"
-  }
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "blindspot-logo.png",
+      "48": "blindspot-logo.png",
+      "128": "blindspot-logo.png"
+    }
+  },
+  "icons": {
+    "16": "blindspot-logo.png",
+    "48": "blindspot-logo.png",
+    "128": "blindspot-logo.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["blindspot-logo.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

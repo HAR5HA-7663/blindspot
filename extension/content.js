@@ -1,6 +1,8 @@
 // Blindspot - Content Script
 // Injects analysis UI into web pages
 
+const BLINDSPOT_LOGO_URL = chrome.runtime.getURL('blindspot-logo.png');
+
 let blindspotOverlay = null;
 let currentOverlayState = null; // Store current overlay state for persistence
 
@@ -160,7 +162,7 @@ function createContextPromptUI(selectedText, withScreenshot, screenshotOnly = fa
   return `
     <div class="blindspot-context-prompt">
       <div class="blindspot-logo">
-        <span class="blindspot-icon">🧠</span>
+        <img src="${BLINDSPOT_LOGO_URL}" alt="Blindspot" class="blindspot-icon-img" />
         <span class="blindspot-title">Blindspot</span>
       </div>
 
@@ -207,7 +209,7 @@ function createLoadingUI(text, screenshotOnly = false) {
   return `
     <div class="blindspot-loading">
       <div class="blindspot-logo">
-        <span class="blindspot-icon">🧠</span>
+        <img src="${BLINDSPOT_LOGO_URL}" alt="Blindspot" class="blindspot-icon-img" />
         <span class="blindspot-title">Blindspot</span>
       </div>
       <div class="blindspot-spinner"></div>
@@ -292,7 +294,7 @@ function createAnalysisUI(analysis, originalText, screenshot = null) {
     <div class="blindspot-analysis">
       <div class="blindspot-header">
         <div class="blindspot-logo">
-          <span class="blindspot-icon">🧠</span>
+          <img src="${BLINDSPOT_LOGO_URL}" alt="Blindspot" class="blindspot-icon-img" />
           <span class="blindspot-title">Analysis</span>
         </div>
       </div>
@@ -341,7 +343,7 @@ function createErrorUI(error) {
   return `
     <div class="blindspot-error">
       <div class="blindspot-logo">
-        <span class="blindspot-icon">🧠</span>
+        <img src="${BLINDSPOT_LOGO_URL}" alt="Blindspot" class="blindspot-icon-img" />
         <span class="blindspot-title">Blindspot</span>
       </div>
       <div class="blindspot-error-icon">⚠️</div>
@@ -451,6 +453,17 @@ function escapeAttr(text) {
 
 // State persistence functions
 // Note: Using URL-based key since chrome.tabs is not available in content scripts
+
+// Check if extension context is still valid
+function isExtensionContextValid() {
+  try {
+    // If chrome.runtime.id is undefined, context is invalidated
+    return !!chrome.runtime?.id;
+  } catch (e) {
+    return false;
+  }
+}
+
 function getStateKey() {
   // Use a hash of the current URL as the key
   const url = window.location.href;
@@ -464,24 +477,35 @@ function getStateKey() {
 }
 
 async function saveOverlayState(state) {
+  if (!isExtensionContextValid()) return;
   try {
     const key = getStateKey();
     await chrome.storage.local.set({ [key]: state });
   } catch (e) {
-    console.error('Blindspot: Failed to save overlay state', e);
+    // Silently fail if context invalidated
+    if (!e.message?.includes('Extension context invalidated')) {
+      console.error('Blindspot: Failed to save overlay state', e);
+    }
   }
 }
 
 async function clearOverlayState() {
+  if (!isExtensionContextValid()) return;
   try {
     const key = getStateKey();
     await chrome.storage.local.remove(key);
   } catch (e) {
-    console.error('Blindspot: Failed to clear overlay state', e);
+    // Silently fail if context invalidated
+    if (!e.message?.includes('Extension context invalidated')) {
+      console.error('Blindspot: Failed to clear overlay state', e);
+    }
   }
 }
 
 async function restoreOverlayState() {
+  // Don't attempt if extension context is invalid
+  if (!isExtensionContextValid()) return;
+
   try {
     // Don't restore if overlay already exists
     if (blindspotOverlay) return;
@@ -527,20 +551,23 @@ async function restoreOverlayState() {
 
     currentOverlayState = tempState;
   } catch (e) {
-    console.error('Blindspot: Failed to restore overlay state', e);
+    // Silently fail if context invalidated
+    if (!e.message?.includes('Extension context invalidated')) {
+      console.error('Blindspot: Failed to restore overlay state', e);
+    }
   }
 }
 
 // Restore overlay when page becomes visible again
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && !blindspotOverlay) {
+  if (!document.hidden && !blindspotOverlay && isExtensionContextValid()) {
     restoreOverlayState();
   }
 });
 
 // Also check when window regains focus
 window.addEventListener('focus', () => {
-  if (!blindspotOverlay) {
+  if (!blindspotOverlay && isExtensionContextValid()) {
     restoreOverlayState();
   }
 });
@@ -548,8 +575,10 @@ window.addEventListener('focus', () => {
 // Restore overlay on page load if state exists
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(restoreOverlayState, 100);
+    if (isExtensionContextValid()) {
+      setTimeout(restoreOverlayState, 100);
+    }
   });
-} else {
+} else if (isExtensionContextValid()) {
   setTimeout(restoreOverlayState, 100);
 }
