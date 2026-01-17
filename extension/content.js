@@ -189,7 +189,7 @@ function createContextPromptUI(selectedText, withScreenshot, screenshotOnly = fa
           data-text="${escapeAttr(selectedText || '')}"
           data-screenshot="${withScreenshot}"
           data-screenshot-only="${screenshotOnly}">
-          📸 Analyze
+          ${withScreenshot ? '📸 ' : '🧠 '}Analyze
         </button>
       </div>
     </div>
