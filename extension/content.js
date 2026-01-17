@@ -686,28 +686,49 @@ function detectSiteType() {
 
 // Check if we're on a subscription page
 function isSubscriptionPage() {
-  const url = window.location.href.toLowerCase();
+  const hostname = window.location.hostname.toLowerCase();
   const pathname = window.location.pathname.toLowerCase();
 
-  // Only trigger on explicit pricing/subscription URLs
-  const urlIndicators = ['pricing', 'plans', 'subscribe', 'upgrade', 'premium', 'membership'];
-  let urlMatch = false;
-  for (const indicator of urlIndicators) {
-    if (pathname.includes(indicator)) {
-      urlMatch = true;
-      break;
-    }
+  // Known subscription services
+  const subscriptionSites = [
+    'netflix.', 'hulu.', 'disneyplus.', 'hbomax.', 'spotify.', 'apple.com/tv',
+    'primevideo.', 'peacock.', 'paramount', 'crunchyroll.'
+  ];
+
+  const isSubscriptionSite = subscriptionSites.some(site => hostname.includes(site.replace('.', '')));
+
+  // URL indicators for subscription/signup flows
+  const urlIndicators = [
+    'pricing', 'plans', 'subscribe', 'upgrade', 'premium', 'membership',
+    'signup', 'planform', 'choose', 'select-plan', 'billing', 'checkout'
+  ];
+
+  const hasUrlIndicator = urlIndicators.some(indicator => pathname.includes(indicator));
+
+  // If on a known subscription site with signup-like URL, trigger
+  if (isSubscriptionSite && hasUrlIndicator) return true;
+
+  // For other sites, check for pricing URL + pricing elements
+  if (hasUrlIndicator) {
+    const pricingElements = document.querySelectorAll(
+      '[class*="price"], [class*="pricing"], [class*="plan"], ' +
+      '[class*="subscription"], [data-plan], [data-price]'
+    );
+    return pricingElements.length >= 2;
   }
 
-  if (!urlMatch) return false;
+  // Also detect by page content: multiple price cards visible
+  const priceText = document.body?.innerText || '';
+  const priceMatches = priceText.match(/\$\d+\.?\d*\/mo|\$\d+\.?\d*\s*per\s*month/gi);
+  if (priceMatches && priceMatches.length >= 2) {
+    // Multiple monthly prices visible = likely a plan selection page
+    const planCards = document.querySelectorAll(
+      '[class*="plan"], [class*="tier"], [class*="package"], [class*="option"]'
+    );
+    if (planCards.length >= 2) return true;
+  }
 
-  // Also require actual pricing elements on page
-  const pricingElements = document.querySelectorAll(
-    '[class*="price"], [class*="pricing"], [class*="plan-card"], ' +
-    '[class*="subscription"], [data-plan], [data-price]'
-  );
-
-  return pricingElements.length >= 2; // Must have pricing URL AND pricing elements
+  return false;
 }
 
 // Check for urgency tactics on page
