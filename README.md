@@ -23,10 +23,21 @@ Blindspot analyzes your reasoning and flags biases before you decide:
 
 ## How It Works
 
+### On-Demand Analysis
 1. **Select text** containing your reasoning on any webpage
 2. **Right-click** → "Analyze with Blindspot"
 3. **Review** detected biases and reframe suggestions
 4. **Decide better**
+
+### Proactive Interventions
+Blindspot automatically detects risky decision contexts and nudges you:
+- **Shopping sites** - Amazon, eBay, checkout pages
+- **Food delivery** - DoorDash, UberEats, Grubhub
+- **Social media** - Twitter, Instagram, TikTok, Reddit
+- **Urgency tactics** - "Limited time!", countdown timers
+- **Subscription pages** - Pricing, premium signups
+
+Press `Ctrl+Shift+B` to manually trigger an intervention check.
 
 ## Installation
 
@@ -68,7 +79,7 @@ would you choose this project?"
 
 ## Team
 
-Built by **[Your Name]** and **Vaishnav** for Aurora Hackathon 2026.
+Built by **Harsha Yellela** and **Vaishnav** for Aurora Hackathon 2026.
 
 ## License
 
