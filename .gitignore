@@ -33,8 +33,4 @@ npm-debug.log*
 config.js
 secrets.js
 
-# Claude Code / AI assistant files
-.claude/
-CLAUDE.md
-DEMO_GUIDE.txt
-TECHNICAL_QA.md
+
