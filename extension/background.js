@@ -189,21 +189,21 @@ chrome.runtime.onInstalled.addListener(() => {
   // Text-only analysis (requires selection)
   chrome.contextMenus.create({
     id: "analyzeWithBlindspot",
-    title: "🧠 Analyze with Blindspot",
+    title: "Analyze with Blindspot",
     contexts: ["selection"]
   });
 
   // Screenshot + text analysis (requires selection)
   chrome.contextMenus.create({
     id: "analyzeWithScreenshot",
-    title: "📸 Analyze with Screenshot",
+    title: "Analyze with Screenshot",
     contexts: ["selection"]
   });
 
   // Screenshot-only analysis (no selection needed)
   chrome.contextMenus.create({
     id: "analyzePageWithScreenshot",
-    title: "📸 Analyze Page with Blindspot",
+    title: "Analyze Page with Blindspot",
     contexts: ["page", "image", "link"]
   });
 

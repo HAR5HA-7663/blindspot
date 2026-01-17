@@ -191,7 +191,7 @@ async function loadHistory() {
     if (insightsJournal.length === 0) {
       historyList.innerHTML = `
         <div class="history-empty">
-          <span class="empty-icon">📝</span>
+          <span class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 7v10c0 3-1.5 5-5 5H8c-3.5 0-5-2-5-5V7c0-3 1.5-5 5-5h8c3.5 0 5 2 5 5Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.5 4.5v2c0 1.1.9 2 2 2h2M8 13h4M8 17h8" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           <p>No analyses yet</p>
           <p class="hint">Start analyzing to build your history</p>
         </div>
@@ -222,9 +222,9 @@ async function loadHistory() {
           </div>
           ${b.triggerQuote ? `<div class="history-bias-quote">"${escapeHtml(b.triggerQuote)}"</div>` : ''}
           ${b.explanation ? `<div class="history-bias-explanation">${escapeHtml(b.explanation)}</div>` : ''}
-          ${b.reframe ? `<div class="history-bias-reframe">💡 ${escapeHtml(b.reframe)}</div>` : ''}
+          ${b.reframe ? `<div class="history-bias-reframe"><svg class="inline-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 7.89v5.66M12 21.41a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.89 2.2a5.67 5.67 0 0 1 6.22 0M9.89 4.18a3.12 3.12 0 0 1 4.22 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> ${escapeHtml(b.reframe)}</div>` : ''}
         </div>
-      `).join('') : '<div class="history-no-bias">✓ No biases detected</div>';
+      `).join('') : '<div class="history-no-bias"><svg class="inline-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="m7.75 12 2.83 2.83 5.67-5.66" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> No biases detected</div>';
 
       return `
         <div class="history-item" data-index="${index}">
@@ -236,8 +236,8 @@ async function loadHistory() {
             <div class="history-preview">${escapeHtml(preview)}</div>
             <div class="history-meta">
               ${biasCount > 0
-                ? `<span class="history-biases">⚠️ ${biasCount} bias${biasCount > 1 ? 'es' : ''}</span>`
-                : '<span class="history-clean">✓ Clean</span>'
+                ? `<span class="history-biases"><svg class="inline-icon" width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 9v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.0001 21.41H5.94005C2.47005 21.41 1.02005 18.93 2.70005 15.9L5.82006 10.28L8.76005 5.00003C10.54 1.79003 13.46 1.79003 15.24 5.00003L18.18 10.29L21.3 15.91C22.98 18.94 21.52 21.42 18.06 21.42H12.0001V21.41Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.995 17h.009" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> ${biasCount} bias${biasCount > 1 ? 'es' : ''}</span>`
+                : '<span class="history-clean"><svg class="inline-icon" width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="m7.75 12 2.83 2.83 5.67-5.66" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Clean</span>'
               }
               <span class="history-expand-hint">Click to expand</span>
             </div>
@@ -478,10 +478,10 @@ function toggleApiKey() {
   const btn = document.getElementById('toggle-api-key');
   if (input.type === 'password') {
     input.type = 'text';
-    btn.textContent = '🙈';
+    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14.53 9.47l-5.06 5.06a3.576 3.576 0 1 1 5.06-5.06Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.82 5.77C16.07 4.45 14.07 3.73 12 3.73c-3.53 0-6.82 2.08-9.11 5.68-.9 1.41-.9 3.78 0 5.19.79 1.24 1.71 2.31 2.71 3.17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.42 19.53c1.14.48 2.35.74 3.58.74 3.53 0 6.82-2.08 9.11-5.68.9-1.41.9-3.78 0-5.19-.33-.52-.69-1.01-1.06-1.47" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.51 12.7a3.565 3.565 0 0 1-2.82 2.82M9.47 14.53L2 22M22 2l-7.47 7.47" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   } else {
     input.type = 'password';
-    btn.textContent = '👁️';
+    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15.58 12c0 1.98-1.6 3.58-3.58 3.58S8.42 13.98 8.42 12s1.6-3.58 3.58-3.58 3.58 1.6 3.58 3.58Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 20.27c3.53 0 6.82-2.08 9.11-5.68.9-1.41.9-3.78 0-5.19-2.29-3.6-5.58-5.68-9.11-5.68-3.53 0-6.82 2.08-9.11 5.68-.9 1.41-.9 3.78 0 5.19 2.29 3.6 5.58 5.68 9.11 5.68Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   }
 }
 
@@ -680,8 +680,9 @@ function displayResults(analysis) {
 
   if (biases.length === 0) {
     resultsContent.innerHTML = `
-      <div style="text-align: center; color: var(--success);">
-        ✓ No significant biases detected!
+      <div style="text-align: center; color: var(--success); display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="m7.75 12 2.83 2.83 5.67-5.66" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        No significant biases detected!
       </div>
       <p style="margin-top: 8px; color: var(--text-secondary); font-size: 12px;">
         ${analysis.overall_assessment}
@@ -690,12 +691,12 @@ function displayResults(analysis) {
   } else {
     resultsContent.innerHTML = biases.map(bias => `
       <div class="bias-item">
-        <div class="bias-name">⚠️ ${formatBiasName(bias.bias)}</div>
+        <div class="bias-name"><svg class="inline-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 9v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.0001 21.41H5.94005C2.47005 21.41 1.02005 18.93 2.70005 15.9L5.82006 10.28L8.76005 5.00003C10.54 1.79003 13.46 1.79003 15.24 5.00003L18.18 10.29L21.3 15.91C22.98 18.94 21.52 21.42 18.06 21.42H12.0001V21.41Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.995 17h.009" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> ${formatBiasName(bias.bias)}</div>
         <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 4px;">
           ${bias.explanation}
         </div>
         <div class="bias-reframe">
-          💡 ${bias.reframe}
+          <svg class="inline-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 7.89v5.66M12 21.41a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.89 2.2a5.67 5.67 0 0 1 6.22 0M9.89 4.18a3.12 3.12 0 0 1 4.22 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> ${bias.reframe}
         </div>
       </div>
     `).join('');

@@ -146,7 +146,7 @@ function createContextPromptUI(selectedText, withScreenshot, screenshotOnly = fa
     <p class="blindspot-selected-text">"${escapeHtml(truncatedText)}"</p>
   ` : `
     <div class="blindspot-screenshot-notice">
-      <span class="blindspot-screenshot-icon">📸</span>
+      <span class="blindspot-screenshot-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6.76 22h10.48c2.76 0 3.86-1.69 3.99-3.75l.52-8.26A3.753 3.753 0 0 0 18 6.04c-.61 0-1.17-.35-1.45-.89l-.72-1.45C15.37 2.75 14.17 2 13.15 2h-2.29c-1.03 0-2.23.75-2.69 1.7l-.72 1.45c-.28.54-.84.89-1.45.89-1.98 0-3.58 1.55-3.75 3.5l-.52 7.75C1.57 19.66 2.97 22 6.76 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 8h3M12 18c1.79 0 3.25-1.46 3.25-3.25S13.79 11.5 12 11.5s-3.25 1.46-3.25 3.25S10.21 18 12 18Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <span>Screenshot will be captured for context</span>
     </div>
   `;
@@ -189,7 +189,7 @@ function createContextPromptUI(selectedText, withScreenshot, screenshotOnly = fa
           data-text="${escapeAttr(selectedText || '')}"
           data-screenshot="${withScreenshot}"
           data-screenshot-only="${screenshotOnly}">
-          ${withScreenshot ? '📸 ' : '🧠 '}Analyze
+          Analyze
         </button>
       </div>
     </div>
@@ -203,7 +203,7 @@ function createLoadingUI(text, screenshotOnly = false) {
   const textSection = hasText ? `
     <p class="blindspot-selected-text">"${escapeHtml(truncatedText)}"</p>
   ` : `
-    <p class="blindspot-loading-subtext">📸 Using screenshot for context</p>
+    <p class="blindspot-loading-subtext"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align: middle; margin-right: 4px;"><path d="M6.76 22h10.48c2.76 0 3.86-1.69 3.99-3.75l.52-8.26A3.753 3.753 0 0 0 18 6.04c-.61 0-1.17-.35-1.45-.89l-.72-1.45C15.37 2.75 14.17 2 13.15 2h-2.29c-1.03 0-2.23.75-2.69 1.7l-.72 1.45c-.28.54-.84.89-1.45.89-1.98 0-3.58 1.55-3.75 3.5l-.52 7.75C1.57 19.66 2.97 22 6.76 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 8h3M12 18c1.79 0 3.25-1.46 3.25-3.25S13.79 11.5 12 11.5s-3.25 1.46-3.25 3.25S10.21 18 12 18Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Using screenshot for context</p>
   `;
 
   return `
@@ -261,7 +261,7 @@ function createAnalysisUI(analysis, originalText, screenshot = null) {
           ${escapeHtml(bias.explanation)}
         </div>
         <div class="blindspot-reframe">
-          <span class="blindspot-reframe-icon">💡</span>
+          <span class="blindspot-reframe-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 7.89v5.66M12 21.41a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.89 2.2a5.67 5.67 0 0 1 6.22 0M9.89 4.18a3.12 3.12 0 0 1 4.22 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           <span class="blindspot-reframe-text">${escapeHtml(bias.reframe)}</span>
         </div>
       </div>
@@ -269,7 +269,7 @@ function createAnalysisUI(analysis, originalText, screenshot = null) {
   } else {
     biasesHTML = `
       <div class="blindspot-no-bias">
-        <span class="blindspot-checkmark">✓</span>
+        <span class="blindspot-checkmark"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="m7.75 12 2.83 2.83 5.67-5.66" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         <p>No significant biases detected in your reasoning.</p>
       </div>
     `;
@@ -279,7 +279,7 @@ function createAnalysisUI(analysis, originalText, screenshot = null) {
   const screenshotSection = screenshot ? `
     <div class="blindspot-screenshot-section">
       <div class="blindspot-screenshot-header">
-        <span class="blindspot-screenshot-label">📸 Context Used</span>
+        <span class="blindspot-screenshot-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align: middle; margin-right: 4px;"><path d="M6.76 22h10.48c2.76 0 3.86-1.69 3.99-3.75l.52-8.26A3.753 3.753 0 0 0 18 6.04c-.61 0-1.17-.35-1.45-.89l-.72-1.45C15.37 2.75 14.17 2 13.15 2h-2.29c-1.03 0-2.23.75-2.69 1.7l-.72 1.45c-.28.54-.84.89-1.45.89-1.98 0-3.58 1.55-3.75 3.5l-.52 7.75C1.57 19.66 2.97 22 6.76 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 8h3M12 18c1.79 0 3.25-1.46 3.25-3.25S13.79 11.5 12 11.5s-3.25 1.46-3.25 3.25S10.21 18 12 18Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Context Used</span>
         <button class="blindspot-screenshot-expand" id="blindspot-expand-screenshot" type="button">
           View Full
         </button>
@@ -346,7 +346,7 @@ function createErrorUI(error) {
         <img src="${BLINDSPOT_LOGO_URL}" alt="Blindspot" class="blindspot-icon-img" />
         <span class="blindspot-title">Blindspot</span>
       </div>
-      <div class="blindspot-error-icon">⚠️</div>
+      <div class="blindspot-error-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 9v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.0001 21.41H5.94005C2.47005 21.41 1.02005 18.93 2.70005 15.9L5.82006 10.28L8.76005 5.00003C10.54 1.79003 13.46 1.79003 15.24 5.00003L18.18 10.29L21.3 15.91C22.98 18.94 21.52 21.42 18.06 21.42H12.0001V21.41Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.995 17h.009" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <p class="blindspot-error-message">${escapeHtml(error)}</p>
       <button class="blindspot-btn blindspot-btn-primary" id="blindspot-close-btn">
         Close
@@ -758,55 +758,55 @@ async function showInterventionNudge(reason, siteType) {
     checkout: {
       title: "About to checkout?",
       subtitle: "Let's make sure this is the right decision",
-      icon: "🛒",
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8.81 2L5.19 5.63M15.19 2l3.62 3.63" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 7.85c0-1.85.99-2 2.22-2h15.56c1.23 0 2.22.15 2.22 2 0 2.15-.99 2-2.22 2H4.22C2.99 9.85 2 10 2 7.85Z" stroke="currentColor" stroke-width="1.5"/><path d="M9.76 14v3.55M14.36 14v3.55" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3.5 10l1.41 8.64C5.23 20.58 6 22 8.86 22h6.03c3.11 0 3.57-1.36 3.93-3.24L20.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
       prompt: "What's driving this purchase? Is it a need or a want?"
     },
     time_shopping: {
       title: "Been browsing for a while",
       subtitle: "Taking a moment to reflect can help",
-      icon: "⏱️",
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.71 15.18l-3.1-1.85c-.54-.32-.98-1.09-.98-1.72V7.51" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       prompt: "What are you looking for? Have you compared options?"
     },
     time_career: {
       title: "Job hunting check-in",
       subtitle: "Career decisions deserve careful thought",
-      icon: "💼",
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M7.99 22h8c5 0 6-2 6.48-4.46l.98-6c.62-3.12-.42-5.54-4.46-5.54H5c-4.03 0-5.07 2.42-4.46 5.54l.98 6C1.99 20 2.99 22 7.99 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V5.2C8 3.43 8 2 11.2 2h1.6C16 2 16 3.43 16 5.2V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 13v.76c0 1.02-.01 1.84-2 1.84s-2-.83-2-1.85V13c0-1 0-1 1-1h2c1 0 1 0 1 1Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M21.65 11A19.478 19.478 0 0 1 14 13.77M2.62 11.27A18.853 18.853 0 0 0 10 13.76" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       prompt: "What's most important to you in your next role?"
     },
     time_finance: {
       title: "Investment check-in",
       subtitle: "Financial decisions benefit from a clear head",
-      icon: "📊",
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M2 22h20" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.75 4v18h4.5V4c0-1.1-.45-2-1.8-2h-.9c-1.35 0-1.8.9-1.8 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 10v12h4V10c0-1.1-.4-2-1.6-2h-.8C3.4 8 3 8.9 3 10ZM17 15v7h4v-7c0-1.1-.4-2-1.6-2h-.8c-1.2 0-1.6.9-1.6 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       prompt: "What's your strategy here? Are emotions involved?"
     },
     time_social: {
       title: "Social media check-in",
       subtitle: "How's this making you feel?",
-      icon: "📱",
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 22H9c-4 0-5-1-5-5V7c0-4 1-5 5-5h6c4 0 5 1 5 5v10c0 4-1 5-5 5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 5.5h-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 18.1a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       prompt: "Are you scrolling with purpose or just passing time? How do you feel right now?"
     },
     time_food: {
       title: "Craving check",
       subtitle: "Is this hunger or something else?",
-      icon: "🍔",
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M17.98 10.79v-.9c0-3.07-2.64-5.56-5.89-5.56-3.21 0-5.82 2.44-5.89 5.46h-.28C4.29 9.79 2.9 11.18 2.9 12.91c0 1.73 1.39 3.12 3.1 3.12h11.98c1.71 0 3.1-1.4 3.1-3.12a3.08 3.08 0 0 0-3.1-3.12Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 16.03v1.92c0 1.11.9 2.01 2.01 2.01h8.98c1.11 0 2.01-.9 2.01-2.01v-1.92" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
       prompt: "Are you actually hungry, or is this stress/boredom eating?"
     },
     subscription: {
       title: "Subscription alert",
       subtitle: "Recurring payments add up fast",
-      icon: "💳",
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M2 8.5h20M6 16.5h2M10.5 16.5h4" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.44 3.5h11.11c3.56 0 4.45.88 4.45 4.39v8.22c0 3.51-.89 4.39-4.44 4.39H6.44c-3.55.01-4.44-.87-4.44-4.38V7.89c0-3.51.89-4.39 4.44-4.39Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       prompt: "Do you really need this? Will you use it in 3 months?"
     },
     urgency: {
       title: "Urgency tactics detected",
       subtitle: "This page is trying to rush you",
-      icon: "⚠️",
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 9v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.0001 21.41H5.94005C2.47005 21.41 1.02005 18.93 2.70005 15.9L5.82006 10.28L8.76005 5.00003C10.54 1.79003 13.46 1.79003 15.24 5.00003L18.18 10.29L21.3 15.91C22.98 18.94 21.52 21.42 18.06 21.42H12.0001V21.41Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.995 17h.009" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       prompt: "Would you still want this if there was no time pressure?"
     },
     manual: {
       title: "Bias Check",
       subtitle: "Good call checking your thinking!",
-      icon: "🧠",
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3c-1.5 0-2.8.8-3.5 2-.5-.3-1-.4-1.5-.4-1.9 0-3.5 1.6-3.5 3.5 0 .5.1 1 .3 1.4-.8.6-1.3 1.6-1.3 2.6 0 1.3.7 2.4 1.8 3-.1.3-.2.6-.2 1 0 1.6 1.3 2.9 2.9 2.9.4 0 .8-.1 1.2-.2.6 1.4 2 2.3 3.6 2.3 1.6 0 3-1 3.6-2.3.4.1.8.2 1.2.2 1.6 0 2.9-1.3 2.9-2.9 0-.4-.1-.7-.2-1 1.1-.6 1.8-1.7 1.8-3 0-1-.5-2-1.3-2.6.2-.4.3-.9.3-1.4 0-1.9-1.6-3.5-3.5-3.5-.5 0-1 .1-1.5.4-.7-1.2-2-2-3.5-2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3v18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 8.5h5M7 12h5M7 15.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 8.5h-5M17 12h-5M17 15.5h-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       prompt: "What decision are you facing right now?"
     }
   };
@@ -844,10 +844,10 @@ async function showInterventionNudge(reason, siteType) {
         </button>
         <button class="blindspot-btn blindspot-btn-ghost blindspot-btn-report" id="blindspot-report-false"
           data-reason="${reason}" data-site="${siteType || 'unknown'}" data-url="${window.location.hostname}">
-          👎 Wrong
+          Not helpful
         </button>
         <button class="blindspot-btn blindspot-btn-primary" id="blindspot-check-nudge">
-          🧠 Check
+          Check
         </button>
       </div>
     </div>
@@ -937,7 +937,7 @@ async function reportFalsePositive(btn) {
     await chrome.storage.local.set({ falsePositives: trimmed });
 
     // Show feedback
-    btn.textContent = '✓ Reported';
+    btn.textContent = 'Reported';
     btn.disabled = true;
     btn.style.color = '#10b981';
 
