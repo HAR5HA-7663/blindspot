@@ -211,24 +211,56 @@ async function loadHistory() {
       const quality = entry.thinkingQuality || entry.quality || 'analyzed';
       const preview = entry.overallAssessment || entry.textPreview || 'Analysis';
       const context = entry.userContext || entry.context || '';
+      const biases = entry.biasesDetected || [];
+
+      // Build expanded content with full bias details
+      const biasesHTML = biases.length > 0 ? biases.map(b => `
+        <div class="history-bias-item">
+          <div class="history-bias-header">
+            <span class="history-bias-name">${formatBiasName(b.bias)}</span>
+            <span class="history-bias-confidence conf-${b.confidence}">${b.confidence}</span>
+          </div>
+          ${b.triggerQuote ? `<div class="history-bias-quote">"${escapeHtml(b.triggerQuote)}"</div>` : ''}
+          ${b.explanation ? `<div class="history-bias-explanation">${escapeHtml(b.explanation)}</div>` : ''}
+          ${b.reframe ? `<div class="history-bias-reframe">💡 ${escapeHtml(b.reframe)}</div>` : ''}
+        </div>
+      `).join('') : '<div class="history-no-bias">✓ No biases detected</div>';
 
       return `
         <div class="history-item" data-index="${index}">
-          <div class="history-item-header">
-            <span class="history-time">${timeAgo}</span>
-            <span class="history-badge badge-${quality}">${quality}</span>
+          <div class="history-item-summary">
+            <div class="history-item-header">
+              <span class="history-time">${timeAgo}</span>
+              <span class="history-badge badge-${quality}">${quality}</span>
+            </div>
+            <div class="history-preview">${escapeHtml(preview)}</div>
+            <div class="history-meta">
+              ${biasCount > 0
+                ? `<span class="history-biases">⚠️ ${biasCount} bias${biasCount > 1 ? 'es' : ''}</span>`
+                : '<span class="history-clean">✓ Clean</span>'
+              }
+              <span class="history-expand-hint">Click to expand</span>
+            </div>
           </div>
-          <div class="history-preview">${escapeHtml(preview)}</div>
-          <div class="history-meta">
-            ${biasCount > 0
-              ? `<span class="history-biases">⚠️ ${biasCount} bias${biasCount > 1 ? 'es' : ''}</span>`
-              : '<span class="history-clean">✓ Clean</span>'
-            }
-            ${context ? `<span class="history-context">${escapeHtml(context.substring(0, 30))}${context.length > 30 ? '...' : ''}</span>` : ''}
+          <div class="history-item-expanded">
+            ${context ? `<div class="history-context-full"><strong>Context:</strong> ${escapeHtml(context)}</div>` : ''}
+            <div class="history-assessment"><strong>Assessment:</strong> ${escapeHtml(preview)}</div>
+            <div class="history-biases-full">
+              <strong>Biases Detected (${biasCount}):</strong>
+              ${biasesHTML}
+            </div>
+            ${entry.pageUrl ? `<div class="history-url"><strong>Source:</strong> ${escapeHtml(entry.pageUrl)}</div>` : ''}
           </div>
         </div>
       `;
     }).join('');
+
+    // Add click handlers for expanding
+    historyList.querySelectorAll('.history-item').forEach(item => {
+      item.addEventListener('click', () => {
+        item.classList.toggle('expanded');
+      });
+    });
 
   } catch (e) {
     console.error('Failed to load history:', e);

@@ -8,7 +8,7 @@ async function saveInsight(analysis, userContext, pageUrl) {
   try {
     const { insightsJournal = [] } = await chrome.storage.local.get(['insightsJournal']);
 
-    // Extract key information from this analysis
+    // Extract full information from this analysis for history display
     const insight = {
       timestamp: Date.now(),
       date: new Date().toISOString().split('T')[0],
@@ -18,17 +18,19 @@ async function saveInsight(analysis, userContext, pageUrl) {
       biasesDetected: (analysis.biases_detected || []).map(b => ({
         bias: b.bias,
         confidence: b.confidence,
-        triggerQuote: b.trigger_quote?.substring(0, 100) // Truncate for storage
+        triggerQuote: b.trigger_quote || '',
+        explanation: b.explanation || '',
+        reframe: b.reframe || ''
       })),
       overallAssessment: analysis.overall_assessment
     };
 
-    // Keep last 50 insights to manage storage
-    const updatedJournal = [insight, ...insightsJournal].slice(0, 50);
+    // Keep last 10 insights for history
+    const updatedJournal = [insight, ...insightsJournal].slice(0, 10);
 
     await chrome.storage.local.set({ insightsJournal: updatedJournal });
 
-    // Update learned patterns
+    // Update learned patterns (use all data for patterns)
     await updateLearnedPatterns(updatedJournal);
 
     console.log('Blindspot: Insight saved', insight);
@@ -38,12 +40,16 @@ async function saveInsight(analysis, userContext, pageUrl) {
 }
 
 async function updateLearnedPatterns(journal) {
-  // Analyze patterns across all insights
+  // Filter to only last 7 days for percentage calculation
+  const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  const recentJournal = journal.filter(insight => insight.timestamp >= oneWeekAgo);
+
+  // Analyze patterns across recent insights only
   const biasFrequency = {};  // Count of analyses containing each bias (not total detections)
   const contextPatterns = {};
-  let totalAnalyses = journal.length;
+  let totalAnalyses = recentJournal.length;
 
-  journal.forEach(insight => {
+  recentJournal.forEach(insight => {
     // Count unique biases per analysis (use Set to avoid counting same bias twice in one analysis)
     const uniqueBiases = new Set(insight.biasesDetected.map(b => b.bias));
     uniqueBiases.forEach(bias => {
@@ -63,7 +69,7 @@ async function updateLearnedPatterns(journal) {
     }
   });
 
-  // Find most common biases (show all that occurred, sorted by frequency)
+  // Find most common biases from last week (show all that occurred, sorted by frequency)
   const frequentBiases = Object.entries(biasFrequency)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
