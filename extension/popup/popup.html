@@ -8,6 +8,7 @@
 </head>
 <body>
   <div class="popup-container">
+    <!-- Header (always visible) -->
     <header class="popup-header">
       <div class="logo">
         <span class="logo-icon">🧠</span>
@@ -16,58 +17,246 @@
       <p class="tagline">Catch your cognitive biases</p>
     </header>
 
-    <main class="popup-main">
-      <!-- API Key Section -->
-      <section class="section" id="api-section">
-        <label class="label" for="api-key">Claude API Key</label>
-        <div class="input-group">
-          <input
-            type="password"
-            id="api-key"
-            placeholder="sk-ant-..."
-            autocomplete="off"
-          >
-          <button id="toggle-key" class="icon-btn" title="Show/Hide">
-            👁️
+    <!-- ONBOARDING VIEW -->
+    <div id="onboarding-view" class="view">
+      <div class="onboarding-content">
+        <!-- Step 1: Welcome -->
+        <div class="step" id="step-1">
+          <h2>Welcome to Blindspot</h2>
+          <p class="step-desc">Let's set you up in 2 minutes. We'll personalize Blindspot to understand how YOU think.</p>
+
+          <div class="setup-preview">
+            <div class="preview-item">
+              <span class="preview-icon">🔑</span>
+              <span>Connect your Claude API</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-icon">👤</span>
+              <span>Tell us about yourself</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-icon">🎯</span>
+              <span>Get personalized analysis</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="nextStep(2)">Get Started</button>
+        </div>
+
+        <!-- Step 2: API Key -->
+        <div class="step hidden" id="step-2">
+          <h2>Connect Claude API</h2>
+          <p class="step-desc">Enter your Anthropic API key to enable bias analysis.</p>
+
+          <div class="form-group">
+            <label for="api-key">API Key</label>
+            <div class="input-with-toggle">
+              <input type="password" id="api-key" placeholder="sk-ant-api03-...">
+              <button type="button" class="toggle-btn" onclick="toggleApiKey()">👁️</button>
+            </div>
+            <p class="hint">Get your key at <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a></p>
+          </div>
+
+          <p class="error-text hidden" id="api-error"></p>
+
+          <div class="step-buttons">
+            <button class="btn btn-secondary" onclick="nextStep(1)">Back</button>
+            <button class="btn btn-primary" onclick="validateAndNext()">Continue</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Personal Questions -->
+        <div class="step hidden" id="step-3">
+          <h2>Tell Us About You</h2>
+          <p class="step-desc">This helps Blindspot give you personalized insights.</p>
+
+          <div class="form-group">
+            <label for="user-name">What should we call you?</label>
+            <input type="text" id="user-name" placeholder="e.g., Alex">
+          </div>
+
+          <div class="form-group">
+            <label for="user-role">What's your role/profession?</label>
+            <input type="text" id="user-role" placeholder="e.g., Software Engineer, Founder, Student">
+          </div>
+
+          <div class="form-group">
+            <label for="user-decisions">What kinds of decisions do you make often?</label>
+            <textarea id="user-decisions" rows="2" placeholder="e.g., Product priorities, hiring, investments, career choices"></textarea>
+          </div>
+
+          <div class="step-buttons">
+            <button class="btn btn-secondary" onclick="nextStep(2)">Back</button>
+            <button class="btn btn-primary" onclick="nextStep(4)">Continue</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Thinking Patterns -->
+        <div class="step hidden" id="step-4">
+          <h2>Your Thinking Patterns</h2>
+          <p class="step-desc">Be honest - this helps us catch YOUR blind spots.</p>
+
+          <div class="form-group">
+            <label>Which biases do you think you're prone to? (select all that apply)</label>
+            <div class="checkbox-group">
+              <label class="checkbox-item">
+                <input type="checkbox" value="sunk_cost">
+                <span>Sunk Cost - "I've invested too much to quit"</span>
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" value="confirmation">
+                <span>Confirmation - Only seeing evidence that agrees with me</span>
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" value="planning">
+                <span>Planning Fallacy - Underestimating how long things take</span>
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" value="emotional">
+                <span>Emotional Reasoning - Letting feelings drive decisions</span>
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" value="bandwagon">
+                <span>Bandwagon - Doing things because others do</span>
+              </label>
+              <label class="checkbox-item">
+                <input type="checkbox" value="loss_aversion">
+                <span>Loss Aversion - Fear of losing more than desire to gain</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="user-weaknesses">Any other decision-making weaknesses you've noticed?</label>
+            <textarea id="user-weaknesses" rows="2" placeholder="e.g., I rush decisions when stressed, I avoid conflict..."></textarea>
+          </div>
+
+          <div class="step-buttons">
+            <button class="btn btn-secondary" onclick="nextStep(3)">Back</button>
+            <button class="btn btn-primary" onclick="nextStep(5)">Continue</button>
+          </div>
+        </div>
+
+        <!-- Step 5: Goals -->
+        <div class="step hidden" id="step-5">
+          <h2>Your Goals</h2>
+          <p class="step-desc">What do you want to improve about your thinking?</p>
+
+          <div class="form-group">
+            <label for="user-goals">What's most important to you right now?</label>
+            <textarea id="user-goals" rows="3" placeholder="e.g., Making better career decisions, avoiding impulse purchases, being more rational in relationships..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="user-style">How do you prefer feedback?</label>
+            <select id="user-style">
+              <option value="direct">Direct and blunt - tell it like it is</option>
+              <option value="supportive">Supportive but honest - gentle nudges</option>
+              <option value="analytical">Analytical - focus on logic and evidence</option>
+              <option value="curious">Curious - ask me questions to make me think</option>
+            </select>
+          </div>
+
+          <div class="step-buttons">
+            <button class="btn btn-secondary" onclick="nextStep(4)">Back</button>
+            <button class="btn btn-primary" onclick="completeOnboarding()">Complete Setup</button>
+          </div>
+        </div>
+
+        <!-- Step 6: Complete -->
+        <div class="step hidden" id="step-6">
+          <div class="success-icon">✓</div>
+          <h2>You're All Set!</h2>
+          <p class="step-desc">Blindspot is now personalized to you.</p>
+
+          <div class="how-to-use">
+            <h3>How to use:</h3>
+            <ol>
+              <li>Select text on any webpage</li>
+              <li>Right-click → <strong>"🧠 Analyze with Blindspot"</strong></li>
+              <li>Or use <strong>"📸 Analyze with Screenshot"</strong> for more context</li>
+            </ol>
+          </div>
+
+          <button class="btn btn-primary" onclick="showMainView()">Start Using Blindspot</button>
+        </div>
+      </div>
+
+      <!-- Progress dots -->
+      <div class="progress-dots" id="progress-dots">
+        <span class="dot active" data-step="1"></span>
+        <span class="dot" data-step="2"></span>
+        <span class="dot" data-step="3"></span>
+        <span class="dot" data-step="4"></span>
+        <span class="dot" data-step="5"></span>
+      </div>
+    </div>
+
+    <!-- MAIN VIEW (after onboarding) -->
+    <div id="main-view" class="view hidden">
+      <main class="popup-main">
+        <!-- Quick Analyze Section -->
+        <section class="section">
+          <label class="label" for="quick-text">Quick Analysis</label>
+          <textarea
+            id="quick-text"
+            placeholder="Paste your reasoning here to analyze for biases..."
+            rows="4"
+          ></textarea>
+          <button id="analyze-btn" class="btn btn-primary">
+            <span id="analyze-text">Analyze</span>
+            <span id="analyze-loading" class="hidden">Analyzing...</span>
           </button>
+        </section>
+
+        <!-- Results Section -->
+        <section class="section hidden" id="results-section">
+          <div class="results-header">
+            <span class="results-title">Results</span>
+            <span class="quality-badge" id="quality-badge"></span>
+          </div>
+          <div id="results-content"></div>
+        </section>
+
+        <!-- How to Use -->
+        <section class="section how-to">
+          <h3>How to Use</h3>
+          <ol>
+            <li>Select text on any webpage</li>
+            <li>Right-click → "🧠 Analyze with Blindspot"</li>
+            <li>Or "📸 Analyze with Screenshot" for context</li>
+          </ol>
+        </section>
+
+        <!-- Settings -->
+        <section class="section settings">
+          <button class="btn btn-secondary btn-small" onclick="showEditProfile()">
+            Edit Profile
+          </button>
+          <button class="btn btn-secondary btn-small" onclick="resetOnboarding()">
+            Reset
+          </button>
+        </section>
+      </main>
+    </div>
+
+    <!-- EDIT PROFILE VIEW -->
+    <div id="edit-profile-view" class="view hidden">
+      <div class="edit-profile-content">
+        <h2>Edit Your Profile</h2>
+        <p class="step-desc">Update your profile to improve personalization.</p>
+
+        <div class="form-group">
+          <label for="edit-profile-text">Your Profile (Markdown)</label>
+          <textarea id="edit-profile-text" rows="12" class="monospace"></textarea>
         </div>
-        <button id="save-key" class="btn btn-primary">Save Key</button>
-        <p class="status" id="key-status"></p>
-      </section>
 
-      <!-- Quick Analyze Section -->
-      <section class="section">
-        <label class="label" for="quick-text">Quick Analysis</label>
-        <textarea
-          id="quick-text"
-          placeholder="Paste your reasoning here to analyze for biases..."
-          rows="4"
-        ></textarea>
-        <button id="analyze-btn" class="btn btn-secondary">
-          <span id="analyze-text">Analyze</span>
-          <span id="analyze-loading" class="hidden">Analyzing...</span>
-        </button>
-      </section>
-
-      <!-- Results Section -->
-      <section class="section hidden" id="results-section">
-        <div class="results-header">
-          <span class="results-title">Results</span>
-          <span class="quality-badge" id="quality-badge"></span>
+        <div class="step-buttons">
+          <button class="btn btn-secondary" onclick="showMainView()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
         </div>
-        <div id="results-content"></div>
-      </section>
-
-      <!-- How to Use -->
-      <section class="section how-to">
-        <h3>How to Use</h3>
-        <ol>
-          <li>Select text on any webpage</li>
-          <li>Right-click → "Analyze with Blindspot"</li>
-          <li>Review detected biases and reframes</li>
-        </ol>
-      </section>
-    </main>
+      </div>
+    </div>
 
     <footer class="popup-footer">
       <span>Aurora Hackathon 2025</span>

@@ -1,135 +1,310 @@
-// Blindspot Popup Script
+// Blindspot Popup Script - Onboarding & Main UI
 
+let currentStep = 1;
+let collectedData = {};
+
+// Initialize on load
 document.addEventListener('DOMContentLoaded', async () => {
-  const apiKeyInput = document.getElementById('api-key');
-  const toggleKeyBtn = document.getElementById('toggle-key');
-  const saveKeyBtn = document.getElementById('save-key');
-  const keyStatus = document.getElementById('key-status');
-  const quickText = document.getElementById('quick-text');
+  // Check if onboarding is complete
+  const response = await chrome.runtime.sendMessage({ action: 'checkOnboarding' });
+
+  if (response.onboardingComplete) {
+    showMainView();
+  } else {
+    showOnboardingView();
+  }
+
+  // Set up analyze button
+  document.getElementById('analyze-btn')?.addEventListener('click', handleAnalyze);
+});
+
+// ============ VIEW MANAGEMENT ============
+
+function showOnboardingView() {
+  document.getElementById('onboarding-view').classList.remove('hidden');
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('edit-profile-view').classList.add('hidden');
+}
+
+function showMainView() {
+  document.getElementById('onboarding-view').classList.add('hidden');
+  document.getElementById('main-view').classList.remove('hidden');
+  document.getElementById('edit-profile-view').classList.add('hidden');
+}
+
+function showEditProfile() {
+  chrome.runtime.sendMessage({ action: 'getProfile' }).then(({ userProfile }) => {
+    document.getElementById('edit-profile-text').value = userProfile || '';
+    document.getElementById('onboarding-view').classList.add('hidden');
+    document.getElementById('main-view').classList.add('hidden');
+    document.getElementById('edit-profile-view').classList.remove('hidden');
+  });
+}
+
+// ============ ONBOARDING STEPS ============
+
+function nextStep(step) {
+  // Hide current step
+  document.getElementById(`step-${currentStep}`).classList.add('hidden');
+
+  // Show new step
+  document.getElementById(`step-${step}`).classList.remove('hidden');
+
+  // Update progress dots
+  updateProgressDots(step);
+
+  currentStep = step;
+}
+
+function updateProgressDots(step) {
+  const dots = document.querySelectorAll('.dot');
+  dots.forEach(dot => {
+    const dotStep = parseInt(dot.dataset.step);
+    dot.classList.toggle('active', dotStep <= step);
+    dot.classList.toggle('completed', dotStep < step);
+  });
+
+  // Hide dots on completion step
+  const progressDots = document.getElementById('progress-dots');
+  if (step === 6) {
+    progressDots.classList.add('hidden');
+  } else {
+    progressDots.classList.remove('hidden');
+  }
+}
+
+function toggleApiKey() {
+  const input = document.getElementById('api-key');
+  const btn = document.querySelector('.toggle-btn');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁️';
+  }
+}
+
+function validateAndNext() {
+  const apiKey = document.getElementById('api-key').value.trim();
+  const errorEl = document.getElementById('api-error');
+
+  if (!apiKey) {
+    errorEl.textContent = 'Please enter your API key';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  if (!apiKey.startsWith('sk-ant-')) {
+    errorEl.textContent = 'Invalid key format (should start with sk-ant-)';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  errorEl.classList.add('hidden');
+  collectedData.apiKey = apiKey;
+  nextStep(3);
+}
+
+function completeOnboarding() {
+  // Collect all data
+  collectedData.name = document.getElementById('user-name').value.trim() || 'User';
+  collectedData.role = document.getElementById('user-role').value.trim();
+  collectedData.decisions = document.getElementById('user-decisions').value.trim();
+  collectedData.weaknesses = document.getElementById('user-weaknesses').value.trim();
+  collectedData.goals = document.getElementById('user-goals').value.trim();
+  collectedData.feedbackStyle = document.getElementById('user-style').value;
+
+  // Collect selected biases
+  const selectedBiases = [];
+  document.querySelectorAll('.checkbox-group input:checked').forEach(cb => {
+    selectedBiases.push(cb.value);
+  });
+  collectedData.proneBiases = selectedBiases;
+
+  // Generate markdown profile
+  const userProfile = generateMarkdownProfile(collectedData);
+
+  // Save to storage
+  chrome.runtime.sendMessage({
+    action: 'saveOnboarding',
+    apiKey: collectedData.apiKey,
+    userProfile: userProfile
+  }).then(() => {
+    nextStep(6);
+  });
+}
+
+function generateMarkdownProfile(data) {
+  const biasLabels = {
+    'sunk_cost': 'Sunk Cost Fallacy',
+    'confirmation': 'Confirmation Bias',
+    'planning': 'Planning Fallacy',
+    'emotional': 'Emotional Reasoning',
+    'bandwagon': 'Bandwagon Effect',
+    'loss_aversion': 'Loss Aversion'
+  };
+
+  const styleLabels = {
+    'direct': 'Direct and blunt',
+    'supportive': 'Supportive but honest',
+    'analytical': 'Analytical and logical',
+    'curious': 'Socratic questioning'
+  };
+
+  let markdown = `# User Profile: ${data.name}\n\n`;
+
+  if (data.role) {
+    markdown += `## Role/Profession\n${data.role}\n\n`;
+  }
+
+  if (data.decisions) {
+    markdown += `## Common Decisions\n${data.decisions}\n\n`;
+  }
+
+  if (data.proneBiases && data.proneBiases.length > 0) {
+    markdown += `## Known Bias Vulnerabilities\n`;
+    markdown += `**Pay extra attention to these biases:**\n`;
+    data.proneBiases.forEach(bias => {
+      markdown += `- ${biasLabels[bias] || bias}\n`;
+    });
+    markdown += `\n`;
+  }
+
+  if (data.weaknesses) {
+    markdown += `## Other Decision-Making Patterns\n${data.weaknesses}\n\n`;
+  }
+
+  if (data.goals) {
+    markdown += `## Current Goals\n${data.goals}\n\n`;
+  }
+
+  markdown += `## Preferred Feedback Style\n${styleLabels[data.feedbackStyle] || data.feedbackStyle}\n`;
+
+  return markdown;
+}
+
+// ============ PROFILE MANAGEMENT ============
+
+function saveProfile() {
+  const newProfile = document.getElementById('edit-profile-text').value;
+  chrome.runtime.sendMessage({
+    action: 'updateProfile',
+    userProfile: newProfile
+  }).then(() => {
+    showMainView();
+  });
+}
+
+function resetOnboarding() {
+  if (confirm('This will reset all your settings and profile. Are you sure?')) {
+    chrome.storage.local.clear().then(() => {
+      currentStep = 1;
+      collectedData = {};
+      // Reset all form fields
+      document.querySelectorAll('input, textarea, select').forEach(el => {
+        if (el.type === 'checkbox') {
+          el.checked = false;
+        } else {
+          el.value = '';
+        }
+      });
+      // Show step 1
+      document.querySelectorAll('.step').forEach(step => step.classList.add('hidden'));
+      document.getElementById('step-1').classList.remove('hidden');
+      updateProgressDots(1);
+      showOnboardingView();
+    });
+  }
+}
+
+// ============ ANALYSIS ============
+
+async function handleAnalyze() {
+  const text = document.getElementById('quick-text').value.trim();
   const analyzeBtn = document.getElementById('analyze-btn');
   const analyzeText = document.getElementById('analyze-text');
   const analyzeLoading = document.getElementById('analyze-loading');
   const resultsSection = document.getElementById('results-section');
+
+  if (!text) {
+    alert('Please enter some text to analyze');
+    return;
+  }
+
+  if (text.length < 10) {
+    alert('Please enter more text (at least a sentence)');
+    return;
+  }
+
+  // Show loading
+  analyzeBtn.disabled = true;
+  analyzeText.classList.add('hidden');
+  analyzeLoading.classList.remove('hidden');
+  resultsSection.classList.add('hidden');
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'analyzeText',
+      text: text
+    });
+
+    if (response.error) {
+      throw new Error(response.error);
+    }
+
+    displayResults(response.analysis);
+  } catch (error) {
+    alert('Error: ' + error.message);
+  } finally {
+    analyzeBtn.disabled = false;
+    analyzeText.classList.remove('hidden');
+    analyzeLoading.classList.add('hidden');
+  }
+}
+
+function displayResults(analysis) {
+  const resultsSection = document.getElementById('results-section');
   const resultsContent = document.getElementById('results-content');
   const qualityBadge = document.getElementById('quality-badge');
 
-  // Load saved API key
-  const { apiKey } = await chrome.storage.local.get('apiKey');
-  if (apiKey) {
-    apiKeyInput.value = apiKey;
-    showStatus(keyStatus, 'API key saved', 'success');
-  }
+  resultsSection.classList.remove('hidden');
 
-  // Toggle password visibility
-  toggleKeyBtn.addEventListener('click', () => {
-    const type = apiKeyInput.type === 'password' ? 'text' : 'password';
-    apiKeyInput.type = type;
-    toggleKeyBtn.textContent = type === 'password' ? '👁️' : '🙈';
-  });
+  // Quality badge
+  const quality = analysis.thinking_quality || 'analyzed';
+  qualityBadge.textContent = quality;
+  qualityBadge.className = 'quality-badge quality-' + quality;
 
-  // Save API key
-  saveKeyBtn.addEventListener('click', async () => {
-    const key = apiKeyInput.value.trim();
-    if (!key) {
-      showStatus(keyStatus, 'Please enter an API key', 'error');
-      return;
-    }
-    if (!key.startsWith('sk-ant-')) {
-      showStatus(keyStatus, 'Invalid key format (should start with sk-ant-)', 'error');
-      return;
-    }
-    await chrome.storage.local.set({ apiKey: key });
-    showStatus(keyStatus, 'API key saved successfully!', 'success');
-  });
+  // Results content
+  const biases = analysis.biases_detected || [];
 
-  // Analyze text
-  analyzeBtn.addEventListener('click', async () => {
-    const text = quickText.value.trim();
-    if (!text) {
-      alert('Please enter some text to analyze');
-      return;
-    }
-    if (text.length < 10) {
-      alert('Please enter more text (at least a sentence)');
-      return;
-    }
-
-    const { apiKey } = await chrome.storage.local.get('apiKey');
-    if (!apiKey) {
-      alert('Please save your API key first');
-      return;
-    }
-
-    // Show loading
-    analyzeBtn.disabled = true;
-    analyzeText.classList.add('hidden');
-    analyzeLoading.classList.remove('hidden');
-    resultsSection.classList.add('hidden');
-
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'analyzeText',
-        text: text
-      });
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      displayResults(response.analysis);
-    } catch (error) {
-      alert('Error: ' + error.message);
-    } finally {
-      analyzeBtn.disabled = false;
-      analyzeText.classList.remove('hidden');
-      analyzeLoading.classList.add('hidden');
-    }
-  });
-
-  function displayResults(analysis) {
-    resultsSection.classList.remove('hidden');
-
-    // Quality badge
-    const quality = analysis.thinking_quality || 'analyzed';
-    qualityBadge.textContent = quality;
-    qualityBadge.className = 'quality-badge quality-' + quality;
-
-    // Results content
-    const biases = analysis.biases_detected || [];
-
-    if (biases.length === 0) {
-      resultsContent.innerHTML = `
-        <div style="text-align: center; color: #059669;">
-          ✓ No significant biases detected!
+  if (biases.length === 0) {
+    resultsContent.innerHTML = `
+      <div style="text-align: center; color: #059669;">
+        ✓ No significant biases detected!
+      </div>
+      <p style="margin-top: 8px; color: #6b7280; font-size: 12px;">
+        ${analysis.overall_assessment}
+      </p>
+    `;
+  } else {
+    resultsContent.innerHTML = biases.map(bias => `
+      <div class="bias-item">
+        <div class="bias-name">⚠️ ${formatBiasName(bias.bias)}</div>
+        <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">
+          ${bias.explanation}
         </div>
-        <p style="margin-top: 8px; color: #6b7280; font-size: 12px;">
-          ${analysis.overall_assessment}
-        </p>
-      `;
-    } else {
-      resultsContent.innerHTML = biases.map(bias => `
-        <div class="bias-item">
-          <div class="bias-name">⚠️ ${formatBiasName(bias.bias)}</div>
-          <div style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">
-            ${bias.explanation}
-          </div>
-          <div class="bias-reframe">
-            💡 ${bias.reframe}
-          </div>
+        <div class="bias-reframe">
+          💡 ${bias.reframe}
         </div>
-      `).join('');
-    }
+      </div>
+    `).join('');
   }
+}
 
-  function formatBiasName(bias) {
-    return bias
-      .replace(/_/g, ' ')
-      .toLowerCase()
-      .replace(/\b\w/g, c => c.toUpperCase());
-  }
-
-  function showStatus(element, message, type) {
-    element.textContent = message;
-    element.className = 'status ' + type;
-  }
-});
+function formatBiasName(bias) {
+  return bias
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}

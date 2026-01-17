@@ -6,10 +6,12 @@
   "permissions": [
     "contextMenus",
     "activeTab",
-    "storage"
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
-    "https://api.anthropic.com/*"
+    "https://api.anthropic.com/*",
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
