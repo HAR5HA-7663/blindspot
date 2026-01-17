@@ -2,31 +2,50 @@
 // Injects analysis UI into web pages
 
 let blindspotOverlay = null;
+let currentOverlayState = null; // Store current overlay state for persistence
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action) {
     case "promptForContext":
-      showOverlay(createContextPromptUI(message.text, message.withScreenshot, message.screenshotOnly));
+      showOverlay(
+        createContextPromptUI(message.text, message.withScreenshot, message.screenshotOnly),
+        { type: 'context', data: message }
+      );
       sendResponse({ received: true });
       break;
     case "showLoading":
-      showOverlay(createLoadingUI(message.text, message.screenshotOnly));
+      showOverlay(
+        createLoadingUI(message.text, message.screenshotOnly),
+        { type: 'loading', data: message }
+      );
       sendResponse({ received: true });
       break;
     case "showAnalysis":
-      // Force remove any existing overlay first
-      removeOverlay();
+      // Force remove any existing overlay first (but keep state temporarily)
+      const tempOverlay = blindspotOverlay;
+      blindspotOverlay = null;
+      if (tempOverlay) tempOverlay.remove();
+
       // Small delay to ensure clean slate
       setTimeout(() => {
-        showOverlay(createAnalysisUI(message.analysis, message.originalText, message.screenshot));
+        showOverlay(
+          createAnalysisUI(message.analysis, message.originalText, message.screenshot),
+          { type: 'analysis', data: message }
+        );
       }, 50);
       sendResponse({ received: true });
       break;
     case "showError":
-      removeOverlay();
+      const tempOverlay2 = blindspotOverlay;
+      blindspotOverlay = null;
+      if (tempOverlay2) tempOverlay2.remove();
+
       setTimeout(() => {
-        showOverlay(createErrorUI(message.error));
+        showOverlay(
+          createErrorUI(message.error),
+          { type: 'error', data: message }
+        );
       }, 50);
       sendResponse({ received: true });
       break;
@@ -34,7 +53,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-function showOverlay(content) {
+function showOverlay(content, state = null) {
   // Always remove existing overlay first
   removeOverlay();
 
@@ -67,6 +86,12 @@ function showOverlay(content) {
 
   // Setup tooltip handlers
   setupTooltips();
+
+  // Save state for persistence
+  if (state) {
+    currentOverlayState = state;
+    saveOverlayState(state);
+  }
 }
 
 function setupTooltips() {
@@ -103,6 +128,10 @@ function removeOverlay() {
   // Also remove any orphaned overlays
   const orphans = document.querySelectorAll('#blindspot-overlay');
   orphans.forEach(el => el.remove());
+
+  // Clear saved state when explicitly closed
+  currentOverlayState = null;
+  clearOverlayState();
 }
 
 // NEW: Context prompt UI - asks user what decision they're facing
@@ -418,4 +447,109 @@ function escapeAttr(text) {
     .replace(/'/g, '&#39;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+// State persistence functions
+// Note: Using URL-based key since chrome.tabs is not available in content scripts
+function getStateKey() {
+  // Use a hash of the current URL as the key
+  const url = window.location.href;
+  let hash = 0;
+  for (let i = 0; i < url.length; i++) {
+    const char = url.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return `blindspot_overlay_${Math.abs(hash)}`;
+}
+
+async function saveOverlayState(state) {
+  try {
+    const key = getStateKey();
+    await chrome.storage.local.set({ [key]: state });
+  } catch (e) {
+    console.error('Blindspot: Failed to save overlay state', e);
+  }
+}
+
+async function clearOverlayState() {
+  try {
+    const key = getStateKey();
+    await chrome.storage.local.remove(key);
+  } catch (e) {
+    console.error('Blindspot: Failed to clear overlay state', e);
+  }
+}
+
+async function restoreOverlayState() {
+  try {
+    // Don't restore if overlay already exists
+    if (blindspotOverlay) return;
+
+    const key = getStateKey();
+    const result = await chrome.storage.local.get(key);
+    const state = result[key];
+
+    if (!state) return;
+
+    currentOverlayState = state;
+
+    // Restore the overlay based on saved state (without saving again to avoid recursion)
+    const tempState = currentOverlayState;
+    currentOverlayState = null; // Temporarily clear to prevent re-saving
+
+    switch (state.type) {
+      case 'context':
+        showOverlay(
+          createContextPromptUI(state.data.text, state.data.withScreenshot, state.data.screenshotOnly),
+          tempState
+        );
+        break;
+      case 'loading':
+        showOverlay(
+          createLoadingUI(state.data.text, state.data.screenshotOnly),
+          tempState
+        );
+        break;
+      case 'analysis':
+        showOverlay(
+          createAnalysisUI(state.data.analysis, state.data.originalText, state.data.screenshot),
+          tempState
+        );
+        break;
+      case 'error':
+        showOverlay(
+          createErrorUI(state.data.error),
+          tempState
+        );
+        break;
+    }
+
+    currentOverlayState = tempState;
+  } catch (e) {
+    console.error('Blindspot: Failed to restore overlay state', e);
+  }
+}
+
+// Restore overlay when page becomes visible again
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && !blindspotOverlay) {
+    restoreOverlayState();
+  }
+});
+
+// Also check when window regains focus
+window.addEventListener('focus', () => {
+  if (!blindspotOverlay) {
+    restoreOverlayState();
+  }
+});
+
+// Restore overlay on page load if state exists
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(restoreOverlayState, 100);
+  });
+} else {
+  setTimeout(restoreOverlayState, 100);
 }

@@ -70,6 +70,68 @@ function showMainView() {
   document.getElementById('onboarding-view').classList.add('hidden');
   document.getElementById('main-view').classList.remove('hidden');
   document.getElementById('edit-profile-view').classList.add('hidden');
+
+  // Load and display learned patterns
+  loadInsights();
+}
+
+// ============ INSIGHTS / LEARNED PATTERNS ============
+
+async function loadInsights() {
+  const insightsSection = document.getElementById('insights-section');
+  const insightsContent = document.getElementById('insights-content');
+  const insightsCount = document.getElementById('insights-count');
+
+  try {
+    const { learnedPatterns, insightsJournal = [] } = await chrome.storage.local.get(['learnedPatterns', 'insightsJournal']);
+
+    if (!learnedPatterns || learnedPatterns.totalAnalyses < 1) {
+      insightsSection.classList.add('hidden');
+      return;
+    }
+
+    insightsSection.classList.remove('hidden');
+    insightsCount.textContent = `${learnedPatterns.totalAnalyses} analyses`;
+
+    let html = '';
+
+    // Show frequent biases
+    if (learnedPatterns.frequentBiases && learnedPatterns.frequentBiases.length > 0) {
+      html += '<div class="insight-group">';
+      html += '<div class="insight-label">Your recurring biases:</div>';
+      html += '<div class="insight-biases">';
+      learnedPatterns.frequentBiases.forEach(({ bias, frequency }) => {
+        const formattedBias = formatBiasName(bias);
+        html += `<span class="insight-bias-tag">${formattedBias} <small>${frequency}%</small></span>`;
+      });
+      html += '</div></div>';
+    }
+
+    // Show common decision contexts
+    if (learnedPatterns.commonContexts && learnedPatterns.commonContexts.length > 0) {
+      html += '<div class="insight-group">';
+      html += '<div class="insight-label">Common decision types:</div>';
+      html += '<div class="insight-contexts">';
+      learnedPatterns.commonContexts.forEach(context => {
+        html += `<span class="insight-context-tag">${context}</span>`;
+      });
+      html += '</div></div>';
+    }
+
+    // Show recent analyses summary
+    const recentCount = Math.min(insightsJournal.length, 3);
+    if (recentCount > 0) {
+      const recentBiasCount = insightsJournal.slice(0, recentCount)
+        .reduce((sum, i) => sum + i.biasesDetected.length, 0);
+      html += `<div class="insight-summary">Last ${recentCount} analyses found ${recentBiasCount} biases</div>`;
+    }
+
+    insightsContent.innerHTML = html || '<div class="insight-summary">Keep using Blindspot to discover your patterns!</div>';
+
+  } catch (e) {
+    console.error('Failed to load insights:', e);
+    insightsSection.classList.add('hidden');
+  }
 }
 
 function showEditProfile() {

@@ -1,6 +1,140 @@
 // Blindspot - Background Service Worker
 // Handles context menu, screenshot capture, and API calls
 
+// ============ INSIGHTS LEARNING SYSTEM ============
+// Stores and learns from past analyses to provide personalized feedback
+
+async function saveInsight(analysis, userContext, pageUrl) {
+  try {
+    const { insightsJournal = [] } = await chrome.storage.local.get(['insightsJournal']);
+
+    // Extract key information from this analysis
+    const insight = {
+      timestamp: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      userContext: userContext || 'Not specified',
+      pageUrl: pageUrl || 'Unknown',
+      thinkingQuality: analysis.thinking_quality,
+      biasesDetected: (analysis.biases_detected || []).map(b => ({
+        bias: b.bias,
+        confidence: b.confidence,
+        triggerQuote: b.trigger_quote?.substring(0, 100) // Truncate for storage
+      })),
+      overallAssessment: analysis.overall_assessment
+    };
+
+    // Keep last 50 insights to manage storage
+    const updatedJournal = [insight, ...insightsJournal].slice(0, 50);
+
+    await chrome.storage.local.set({ insightsJournal: updatedJournal });
+
+    // Update learned patterns
+    await updateLearnedPatterns(updatedJournal);
+
+    console.log('Blindspot: Insight saved', insight);
+  } catch (e) {
+    console.error('Blindspot: Failed to save insight', e);
+  }
+}
+
+async function updateLearnedPatterns(journal) {
+  // Analyze patterns across all insights
+  const biasFrequency = {};
+  const contextPatterns = {};
+  let totalAnalyses = journal.length;
+
+  journal.forEach(insight => {
+    // Count bias occurrences
+    insight.biasesDetected.forEach(b => {
+      biasFrequency[b.bias] = (biasFrequency[b.bias] || 0) + 1;
+    });
+
+    // Track context patterns (what types of decisions)
+    const context = insight.userContext.toLowerCase();
+    if (context.includes('buy') || context.includes('purchase') || context.includes('spend')) {
+      contextPatterns['purchase_decisions'] = (contextPatterns['purchase_decisions'] || 0) + 1;
+    }
+    if (context.includes('career') || context.includes('job') || context.includes('work')) {
+      contextPatterns['career_decisions'] = (contextPatterns['career_decisions'] || 0) + 1;
+    }
+    if (context.includes('relationship') || context.includes('friend') || context.includes('family')) {
+      contextPatterns['relationship_decisions'] = (contextPatterns['relationship_decisions'] || 0) + 1;
+    }
+  });
+
+  // Find most common biases (occurring in >20% of analyses)
+  const frequentBiases = Object.entries(biasFrequency)
+    .filter(([_, count]) => count / totalAnalyses >= 0.2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([bias, count]) => ({
+      bias,
+      frequency: Math.round((count / totalAnalyses) * 100)
+    }));
+
+  // Find most common decision contexts
+  const commonContexts = Object.entries(contextPatterns)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([context, count]) => context.replace('_', ' '));
+
+  const learnedPatterns = {
+    totalAnalyses,
+    frequentBiases,
+    commonContexts,
+    lastUpdated: Date.now()
+  };
+
+  await chrome.storage.local.set({ learnedPatterns });
+}
+
+async function getLearnedPatternsPrompt() {
+  try {
+    const { learnedPatterns, insightsJournal = [] } = await chrome.storage.local.get(['learnedPatterns', 'insightsJournal']);
+
+    if (!learnedPatterns || learnedPatterns.totalAnalyses < 3) {
+      return ''; // Not enough data yet
+    }
+
+    let prompt = '\n\n## LEARNED PATTERNS FROM PAST ANALYSES\n';
+    prompt += `Based on ${learnedPatterns.totalAnalyses} previous analyses:\n\n`;
+
+    if (learnedPatterns.frequentBiases.length > 0) {
+      prompt += '**Recurring Biases (be extra vigilant for these):**\n';
+      learnedPatterns.frequentBiases.forEach(({ bias, frequency }) => {
+        prompt += `- ${bias}: Detected in ${frequency}% of past analyses\n`;
+      });
+      prompt += '\n';
+    }
+
+    if (learnedPatterns.commonContexts.length > 0) {
+      prompt += `**Common Decision Types:** ${learnedPatterns.commonContexts.join(', ')}\n\n`;
+    }
+
+    // Add recent context for continuity
+    const recentInsights = insightsJournal.slice(0, 3);
+    if (recentInsights.length > 0) {
+      prompt += '**Recent Analysis History:**\n';
+      recentInsights.forEach((insight, i) => {
+        const biases = insight.biasesDetected.map(b => b.bias).join(', ') || 'None';
+        prompt += `${i + 1}. "${insight.userContext.substring(0, 50)}..." → Detected: ${biases}\n`;
+      });
+      prompt += '\n';
+    }
+
+    prompt += 'IMPORTANT: Reference these patterns when relevant. For example:\n';
+    prompt += '- "I notice you often struggle with SUNK_COST - and I see it here again..."\n';
+    prompt += '- "Based on your history, you tend to use emotional reasoning for career decisions..."\n';
+
+    return prompt;
+  } catch (e) {
+    console.error('Blindspot: Failed to get learned patterns', e);
+    return '';
+  }
+}
+
+// ============ END LEARNING SYSTEM ============
+
 const BIAS_SYSTEM_PROMPT = `You are Blindspot, a cognitive bias detector. Your job is to analyze text and identify cognitive biases in the user's reasoning.
 
 When analyzing text, look for these common biases:
@@ -162,7 +296,7 @@ async function captureScreenshot(tabId) {
 }
 
 // Build personalized system prompt
-function buildSystemPrompt(userProfile) {
+async function buildSystemPrompt(userProfile) {
   let prompt = BIAS_SYSTEM_PROMPT;
 
   if (userProfile) {
@@ -175,12 +309,18 @@ function buildSystemPrompt(userProfile) {
 5. Speak to them as an individual, not generically`;
   }
 
+  // Add learned patterns from past analyses
+  const learnedPatternsPrompt = await getLearnedPatternsPrompt();
+  if (learnedPatternsPrompt) {
+    prompt += learnedPatternsPrompt;
+  }
+
   return prompt;
 }
 
 // Claude API call (text only)
 async function analyzeWithClaude(text, userContext, apiKey, userProfile) {
-  const systemPrompt = buildSystemPrompt(userProfile);
+  const systemPrompt = await buildSystemPrompt(userProfile);
 
   let userMessage = `Analyze this text for cognitive biases:\n\n"${text}"`;
 
@@ -220,7 +360,7 @@ async function analyzeWithClaude(text, userContext, apiKey, userProfile) {
 
 // Claude API call with vision (screenshot + text)
 async function analyzeWithVision(text, userContext, screenshotDataUrl, apiKey, userProfile) {
-  const systemPrompt = buildSystemPrompt(userProfile);
+  const systemPrompt = await buildSystemPrompt(userProfile);
 
   // Extract base64 data from data URL
   const base64Data = screenshotDataUrl.split(',')[1];
@@ -315,6 +455,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         } else {
           analysis = await analyzeWithClaude(message.text, message.userContext, apiKey, userProfile);
         }
+
+        // Save insight for learning (get tab URL for context)
+        const tab = await chrome.tabs.get(tabId);
+        await saveInsight(analysis, message.userContext, tab.url);
 
         await sendToTab(tabId, {
           action: "showAnalysis",

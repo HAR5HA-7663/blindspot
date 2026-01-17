@@ -4,7 +4,7 @@
 
 Blindspot catches your brain's cognitive biases in real-time, BEFORE you make bad decisions.
 
-> Built for Aurora Hackathon 2025
+> Built for Aurora Hackathon 2026
 
 ## The Problem
 
@@ -68,7 +68,7 @@ would you choose this project?"
 
 ## Team
 
-Built by **[Your Name]** and **Vaishnav** for Aurora Hackathon 2025.
+Built by **[Your Name]** and **Vaishnav** for Aurora Hackathon 2026.
 
 ## License
 
