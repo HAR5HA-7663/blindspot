@@ -225,7 +225,11 @@ git clone https://github.com/HAR5HA-7663/blindspot.git
 
 ## Team Notes
 
-- Harsha: Extension development, UI/UX
-- Vaishnav: Testing, demo preparation
+- **Harsha**: Core extension development, API integration, backend logic
+- **Vaishnav**: UI/UX design, frontend development, user experience improvements
+  - Recommended: User context input flow
+  - Recommended: Screenshot thumbnail display
+  - Recommended: Info tooltips for quality/confidence levels
+  - Recommended: Screenshot-only analysis option
 - Focus on making the demo smooth and impressive
 - The personalization is our differentiator - emphasize it!
