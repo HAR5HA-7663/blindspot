@@ -677,3 +677,100 @@
 .blindspot-content::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* Screenshot Notice (for screenshot-only mode) */
+.blindspot-screenshot-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  margin: 16px 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.blindspot-screenshot-icon {
+  font-size: 20px;
+}
+
+.blindspot-loading-subtext {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* Screenshot Section in Analysis Results */
+.blindspot-screenshot-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.blindspot-screenshot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.blindspot-screenshot-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.blindspot-screenshot-expand {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all 0.2s ease;
+}
+
+.blindspot-screenshot-expand:hover {
+  background: var(--elevated);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.blindspot-screenshot-thumb {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  max-height: 80px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.blindspot-screenshot-thumb.expanded {
+  max-height: 400px;
+}
+
+.blindspot-screenshot-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  object-position: top;
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+}
+
+.blindspot-screenshot-thumb:hover .blindspot-screenshot-img {
+  opacity: 1;
+}
+
+.blindspot-screenshot-thumb.expanded .blindspot-screenshot-img {
+  object-fit: contain;
+  opacity: 1;
+}

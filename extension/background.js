@@ -46,18 +46,25 @@ let pendingAnalysis = {};
 
 // Create context menus on install
 chrome.runtime.onInstalled.addListener(() => {
-  // Text-only analysis
+  // Text-only analysis (requires selection)
   chrome.contextMenus.create({
     id: "analyzeWithBlindspot",
     title: "🧠 Analyze with Blindspot",
     contexts: ["selection"]
   });
 
-  // Screenshot + text analysis
+  // Screenshot + text analysis (requires selection)
   chrome.contextMenus.create({
     id: "analyzeWithScreenshot",
     title: "📸 Analyze with Screenshot",
     contexts: ["selection"]
+  });
+
+  // Screenshot-only analysis (no selection needed)
+  chrome.contextMenus.create({
+    id: "analyzePageWithScreenshot",
+    title: "📸 Analyze Page with Blindspot",
+    contexts: ["page", "image", "link"]
   });
 
   console.log("Blindspot installed - context menus created");
@@ -65,9 +72,11 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Handle context menu click - show prompt for context first
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  const selectedText = info.selectionText?.trim();
+  const selectedText = info.selectionText?.trim() || '';
+  const isPageScreenshot = info.menuItemId === "analyzePageWithScreenshot";
 
-  if (!selectedText || selectedText.length < 10) {
+  // For text-based analysis, require text selection
+  if (!isPageScreenshot && selectedText.length < 10) {
     await sendToTab(tab.id, {
       action: "showError",
       error: "Please select more text to analyze (at least a sentence)."
@@ -91,12 +100,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     windowId: tab.windowId
   };
 
-  // Show context prompt UI instead of immediately analyzing
-  const withScreenshot = info.menuItemId === "analyzeWithScreenshot";
+  // Determine analysis type
+  const withScreenshot = info.menuItemId === "analyzeWithScreenshot" || isPageScreenshot;
+
+  // Show context prompt UI
   await sendToTab(tab.id, {
     action: "promptForContext",
     text: selectedText,
-    withScreenshot: withScreenshot
+    withScreenshot: withScreenshot,
+    screenshotOnly: isPageScreenshot
   });
 });
 
@@ -294,9 +306,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       try {
         let analysis;
+        let screenshotThumbnail = null;
 
         if (message.withScreenshot) {
           const screenshot = await captureScreenshot(tabId);
+          screenshotThumbnail = screenshot; // Pass to content script for display
           analysis = await analyzeWithVision(message.text, message.userContext, screenshot, apiKey, userProfile);
         } else {
           analysis = await analyzeWithClaude(message.text, message.userContext, apiKey, userProfile);
@@ -305,7 +319,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         await sendToTab(tabId, {
           action: "showAnalysis",
           analysis: analysis,
-          originalText: message.text
+          originalText: message.text,
+          screenshot: screenshotThumbnail
         });
 
       } catch (error) {

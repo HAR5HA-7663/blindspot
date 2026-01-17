@@ -7,11 +7,11 @@ let blindspotOverlay = null;
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action) {
     case "promptForContext":
-      showOverlay(createContextPromptUI(message.text, message.withScreenshot));
+      showOverlay(createContextPromptUI(message.text, message.withScreenshot, message.screenshotOnly));
       sendResponse({ received: true });
       break;
     case "showLoading":
-      showOverlay(createLoadingUI(message.text));
+      showOverlay(createLoadingUI(message.text, message.screenshotOnly));
       sendResponse({ received: true });
       break;
     case "showAnalysis":
@@ -19,7 +19,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       removeOverlay();
       // Small delay to ensure clean slate
       setTimeout(() => {
-        showOverlay(createAnalysisUI(message.analysis, message.originalText));
+        showOverlay(createAnalysisUI(message.analysis, message.originalText, message.screenshot));
       }, 50);
       sendResponse({ received: true });
       break;
@@ -106,8 +106,27 @@ function removeOverlay() {
 }
 
 // NEW: Context prompt UI - asks user what decision they're facing
-function createContextPromptUI(selectedText, withScreenshot) {
-  const truncatedText = selectedText.length > 150 ? selectedText.substring(0, 150) + '...' : selectedText;
+function createContextPromptUI(selectedText, withScreenshot, screenshotOnly = false) {
+  const hasText = selectedText && selectedText.length > 0;
+  const truncatedText = hasText ? (selectedText.length > 150 ? selectedText.substring(0, 150) + '...' : selectedText) : '';
+
+  const selectedTextSection = hasText ? `
+    <p class="blindspot-prompt-label">You selected:</p>
+    <p class="blindspot-selected-text">"${escapeHtml(truncatedText)}"</p>
+  ` : `
+    <div class="blindspot-screenshot-notice">
+      <span class="blindspot-screenshot-icon">📸</span>
+      <span>Screenshot will be captured for context</span>
+    </div>
+  `;
+
+  const questionLabel = screenshotOnly
+    ? "What are you thinking about on this page?"
+    : "What decision are you trying to make?";
+
+  const placeholder = screenshotOnly
+    ? "e.g., Is this product worth the price? Should I trust this website? What am I missing here?"
+    : "e.g., Should I buy this? Is this a good career move? Am I overreacting to this email?";
 
   return `
     <div class="blindspot-context-prompt">
@@ -116,17 +135,16 @@ function createContextPromptUI(selectedText, withScreenshot) {
         <span class="blindspot-title">Blindspot</span>
       </div>
 
-      <p class="blindspot-prompt-label">You selected:</p>
-      <p class="blindspot-selected-text">"${escapeHtml(truncatedText)}"</p>
+      ${selectedTextSection}
 
       <div class="blindspot-context-form">
         <label class="blindspot-input-label" for="blindspot-context-input">
-          What decision are you trying to make?
+          ${questionLabel}
         </label>
         <textarea
           id="blindspot-context-input"
           class="blindspot-textarea"
-          placeholder="e.g., Should I buy this? Is this a good career move? Am I overreacting to this email?"
+          placeholder="${placeholder}"
           rows="3"
         ></textarea>
         <p class="blindspot-hint">This helps Blindspot understand your situation and give better advice.</p>
@@ -137,17 +155,26 @@ function createContextPromptUI(selectedText, withScreenshot) {
           Cancel
         </button>
         <button class="blindspot-btn blindspot-btn-primary" id="blindspot-analyze-btn"
-          data-text="${escapeAttr(selectedText)}"
-          data-screenshot="${withScreenshot}">
-          ${withScreenshot ? '📸 Analyze with Context' : '🧠 Analyze'}
+          data-text="${escapeAttr(selectedText || '')}"
+          data-screenshot="${withScreenshot}"
+          data-screenshot-only="${screenshotOnly}">
+          📸 Analyze
         </button>
       </div>
     </div>
   `;
 }
 
-function createLoadingUI(text) {
-  const truncatedText = text.length > 100 ? text.substring(0, 100) + '...' : text;
+function createLoadingUI(text, screenshotOnly = false) {
+  const hasText = text && text.length > 0;
+  const truncatedText = hasText ? (text.length > 100 ? text.substring(0, 100) + '...' : text) : '';
+
+  const textSection = hasText ? `
+    <p class="blindspot-selected-text">"${escapeHtml(truncatedText)}"</p>
+  ` : `
+    <p class="blindspot-loading-subtext">📸 Using screenshot for context</p>
+  `;
+
   return `
     <div class="blindspot-loading">
       <div class="blindspot-logo">
@@ -156,12 +183,12 @@ function createLoadingUI(text) {
       </div>
       <div class="blindspot-spinner"></div>
       <p class="blindspot-loading-text">Analyzing your reasoning...</p>
-      <p class="blindspot-selected-text">"${escapeHtml(truncatedText)}"</p>
+      ${textSection}
     </div>
   `;
 }
 
-function createAnalysisUI(analysis, originalText) {
+function createAnalysisUI(analysis, originalText, screenshot = null) {
   const biases = analysis.biases_detected || [];
   const hasBiases = biases.length > 0;
 
@@ -217,6 +244,21 @@ function createAnalysisUI(analysis, originalText) {
     `;
   }
 
+  // Screenshot thumbnail section
+  const screenshotSection = screenshot ? `
+    <div class="blindspot-screenshot-section">
+      <div class="blindspot-screenshot-header">
+        <span class="blindspot-screenshot-label">📸 Context Used</span>
+        <button class="blindspot-screenshot-expand" id="blindspot-expand-screenshot" type="button">
+          View Full
+        </button>
+      </div>
+      <div class="blindspot-screenshot-thumb" id="blindspot-screenshot-container">
+        <img src="${screenshot}" alt="Page screenshot" class="blindspot-screenshot-img" />
+      </div>
+    </div>
+  ` : '';
+
   return `
     <div class="blindspot-analysis">
       <div class="blindspot-header">
@@ -251,6 +293,8 @@ function createAnalysisUI(analysis, originalText) {
         ${hasBiases ? `<h3 class="blindspot-section-title">Biases Detected (${biases.length})</h3>` : ''}
         ${biasesHTML}
       </div>
+
+      ${screenshotSection}
 
       <div class="blindspot-footer">
         <button class="blindspot-btn blindspot-btn-secondary" id="blindspot-copy">
@@ -291,6 +335,9 @@ document.addEventListener('click', (e) => {
   if (e.target.id === 'blindspot-analyze-btn') {
     handleAnalyzeClick(e.target);
   }
+  if (e.target.id === 'blindspot-expand-screenshot' || e.target.closest('#blindspot-screenshot-container')) {
+    toggleScreenshotExpand();
+  }
 });
 
 // Handle Enter key in textarea
@@ -304,24 +351,37 @@ document.addEventListener('keydown', (e) => {
 });
 
 function handleAnalyzeClick(btn) {
-  const selectedText = btn.dataset.text;
+  const selectedText = btn.dataset.text || '';
   const withScreenshot = btn.dataset.screenshot === 'true';
+  const screenshotOnly = btn.dataset.screenshotOnly === 'true';
   const contextInput = document.getElementById('blindspot-context-input');
   const userContext = contextInput ? contextInput.value.trim() : '';
 
   // Show loading
-  showOverlay(createLoadingUI(selectedText));
+  showOverlay(createLoadingUI(selectedText, screenshotOnly));
 
   // Send to background for analysis
   chrome.runtime.sendMessage({
     action: 'analyzeFromContent',
     text: selectedText,
     userContext: userContext,
-    withScreenshot: withScreenshot
+    withScreenshot: withScreenshot,
+    screenshotOnly: screenshotOnly
   }).catch(err => {
     console.error('Blindspot: Failed to send message', err);
     showOverlay(createErrorUI('Failed to connect. Please refresh the page and try again.'));
   });
+}
+
+function toggleScreenshotExpand() {
+  const container = document.getElementById('blindspot-screenshot-container');
+  const btn = document.getElementById('blindspot-expand-screenshot');
+  if (container) {
+    container.classList.toggle('expanded');
+    if (btn) {
+      btn.textContent = container.classList.contains('expanded') ? 'Collapse' : 'View Full';
+    }
+  }
 }
 
 function copyInsights() {
