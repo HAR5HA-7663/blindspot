@@ -463,3 +463,62 @@
   color: var(--text-primary);
   border-color: var(--text-muted);
 }
+
+/* Context Prompt UI - Ask for user context */
+.blindspot-context-prompt {
+  color: var(--text-primary);
+}
+
+.blindspot-prompt-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 20px 0 8px 0;
+}
+
+.blindspot-context-form {
+  margin: 24px 0;
+}
+
+.blindspot-input-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.blindspot-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.blindspot-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.blindspot-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.blindspot-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-style: italic;
+}

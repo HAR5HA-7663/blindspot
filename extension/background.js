@@ -41,6 +41,9 @@ If no biases are detected, return:
 Be direct but not harsh. You're helping them think better, not criticizing them.
 Only flag biases you're confident about. Quality over quantity.`;
 
+// Store current tab info for analysis
+let pendingAnalysis = {};
+
 // Create context menus on install
 chrome.runtime.onInstalled.addListener(() => {
   // Text-only analysis
@@ -60,67 +63,75 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log("Blindspot installed - context menus created");
 });
 
-// Handle context menu click
+// Handle context menu click - show prompt for context first
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const selectedText = info.selectionText?.trim();
 
   if (!selectedText || selectedText.length < 10) {
-    chrome.tabs.sendMessage(tab.id, {
+    await sendToTab(tab.id, {
       action: "showError",
       error: "Please select more text to analyze (at least a sentence)."
     });
     return;
   }
 
-  // Show loading state
-  chrome.tabs.sendMessage(tab.id, {
-    action: "showLoading",
-    text: selectedText
-  });
-
-  try {
-    // Get API key and user profile from storage
-    const { apiKey, userProfile } = await chrome.storage.local.get(['apiKey', 'userProfile']);
-
-    if (!apiKey) {
-      chrome.tabs.sendMessage(tab.id, {
-        action: "showError",
-        error: "Please complete the setup in the extension popup first."
-      });
-      return;
-    }
-
-    let analysis;
-
-    if (info.menuItemId === "analyzeWithScreenshot") {
-      // Capture screenshot and analyze with vision
-      const screenshot = await captureScreenshot(tab);
-      analysis = await analyzeWithVision(selectedText, screenshot, apiKey, userProfile);
-    } else {
-      // Text-only analysis
-      analysis = await analyzeWithClaude(selectedText, apiKey, userProfile);
-    }
-
-    // Send results to content script
-    chrome.tabs.sendMessage(tab.id, {
-      action: "showAnalysis",
-      analysis: analysis,
-      originalText: selectedText
-    });
-
-  } catch (error) {
-    console.error("Blindspot error:", error);
-    chrome.tabs.sendMessage(tab.id, {
+  // Check if setup is complete
+  const { apiKey } = await chrome.storage.local.get(['apiKey']);
+  if (!apiKey) {
+    await sendToTab(tab.id, {
       action: "showError",
-      error: error.message || "Failed to analyze text. Please try again."
+      error: "Please complete the setup in the extension popup first."
     });
+    return;
   }
+
+  // Store tab for later use with screenshot
+  pendingAnalysis[tab.id] = {
+    tabId: tab.id,
+    windowId: tab.windowId
+  };
+
+  // Show context prompt UI instead of immediately analyzing
+  const withScreenshot = info.menuItemId === "analyzeWithScreenshot";
+  await sendToTab(tab.id, {
+    action: "promptForContext",
+    text: selectedText,
+    withScreenshot: withScreenshot
+  });
 });
 
-// Capture screenshot of visible tab
-async function captureScreenshot(tab) {
+// Helper to safely send message to tab
+async function sendToTab(tabId, message) {
   try {
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
+    await chrome.tabs.sendMessage(tabId, message);
+  } catch (error) {
+    console.error("Failed to send message to tab:", error);
+    // Try injecting content script and retry
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      });
+      await chrome.scripting.insertCSS({
+        target: { tabId: tabId },
+        files: ['styles.css']
+      });
+      // Retry sending message
+      await chrome.tabs.sendMessage(tabId, message);
+    } catch (retryError) {
+      console.error("Failed to inject and retry:", retryError);
+    }
+  }
+}
+
+// Capture screenshot of visible tab
+async function captureScreenshot(tabId) {
+  try {
+    const tabInfo = pendingAnalysis[tabId];
+    if (!tabInfo) {
+      throw new Error("No tab info available for screenshot");
+    }
+    const dataUrl = await chrome.tabs.captureVisibleTab(tabInfo.windowId, {
       format: 'jpeg',
       quality: 80
     });
@@ -149,8 +160,14 @@ function buildSystemPrompt(userProfile) {
 }
 
 // Claude API call (text only)
-async function analyzeWithClaude(text, apiKey, userProfile) {
+async function analyzeWithClaude(text, userContext, apiKey, userProfile) {
   const systemPrompt = buildSystemPrompt(userProfile);
+
+  let userMessage = `Analyze this text for cognitive biases:\n\n"${text}"`;
+
+  if (userContext) {
+    userMessage = `The user is trying to decide: "${userContext}"\n\nThey selected this text from a webpage:\n"${text}"\n\nAnalyze their thinking for cognitive biases, keeping in mind the decision they're trying to make.`;
+  }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -166,7 +183,7 @@ async function analyzeWithClaude(text, apiKey, userProfile) {
       system: systemPrompt,
       messages: [{
         role: 'user',
-        content: `Analyze this text for cognitive biases:\n\n"${text}"`
+        content: userMessage
       }]
     })
   });
@@ -183,11 +200,17 @@ async function analyzeWithClaude(text, apiKey, userProfile) {
 }
 
 // Claude API call with vision (screenshot + text)
-async function analyzeWithVision(text, screenshotDataUrl, apiKey, userProfile) {
+async function analyzeWithVision(text, userContext, screenshotDataUrl, apiKey, userProfile) {
   const systemPrompt = buildSystemPrompt(userProfile);
 
   // Extract base64 data from data URL
   const base64Data = screenshotDataUrl.split(',')[1];
+
+  let userMessage = `I'm looking at this webpage/screen. The text I've selected for analysis is:\n\n"${text}"\n\nPlease analyze this text for cognitive biases. Use the screenshot for additional context about what I'm looking at (e.g., is this a shopping page, an email, a document, etc.). This context should inform your analysis.`;
+
+  if (userContext) {
+    userMessage = `I'm trying to decide: "${userContext}"\n\nI've selected this text from the webpage:\n"${text}"\n\nPlease analyze my thinking for cognitive biases. Use the screenshot to understand the full context of what I'm looking at (shopping page, email, article, etc.). Consider both my stated decision and the context visible in the screenshot.`;
+  }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -214,7 +237,7 @@ async function analyzeWithVision(text, screenshotDataUrl, apiKey, userProfile) {
           },
           {
             type: 'text',
-            text: `I'm looking at this webpage/screen. The text I've selected for analysis is:\n\n"${text}"\n\nPlease analyze this text for cognitive biases. Use the screenshot for additional context about what I'm looking at (e.g., is this a shopping page, an email, a document, etc.). This context should inform your analysis.`
+            text: userMessage
           }
         ]
       }]
@@ -247,15 +270,57 @@ function parseAnalysisResponse(content) {
   }
 }
 
-// Listen for messages from popup
+// Listen for messages from popup and content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle analysis request from content script (after user enters context)
+  if (message.action === "analyzeFromContent") {
+    const tabId = sender.tab?.id;
+
+    chrome.storage.local.get(['apiKey', 'userProfile']).then(async ({ apiKey, userProfile }) => {
+      if (!apiKey) {
+        await sendToTab(tabId, {
+          action: "showError",
+          error: "No API key set. Please complete setup."
+        });
+        return;
+      }
+
+      try {
+        let analysis;
+
+        if (message.withScreenshot) {
+          const screenshot = await captureScreenshot(tabId);
+          analysis = await analyzeWithVision(message.text, message.userContext, screenshot, apiKey, userProfile);
+        } else {
+          analysis = await analyzeWithClaude(message.text, message.userContext, apiKey, userProfile);
+        }
+
+        await sendToTab(tabId, {
+          action: "showAnalysis",
+          analysis: analysis,
+          originalText: message.text
+        });
+
+      } catch (error) {
+        console.error("Blindspot error:", error);
+        await sendToTab(tabId, {
+          action: "showError",
+          error: error.message || "Failed to analyze text. Please try again."
+        });
+      }
+    });
+
+    sendResponse({ received: true });
+    return true;
+  }
+
   if (message.action === "analyzeText") {
     chrome.storage.local.get(['apiKey', 'userProfile']).then(({ apiKey, userProfile }) => {
       if (!apiKey) {
         sendResponse({ error: "No API key set" });
         return;
       }
-      analyzeWithClaude(message.text, apiKey, userProfile)
+      analyzeWithClaude(message.text, '', apiKey, userProfile)
         .then(analysis => sendResponse({ analysis }))
         .catch(error => sendResponse({ error: error.message }));
     });

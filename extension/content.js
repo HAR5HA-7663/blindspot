@@ -6,16 +6,24 @@ let blindspotOverlay = null;
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action) {
+    case "promptForContext":
+      showOverlay(createContextPromptUI(message.text, message.withScreenshot));
+      sendResponse({ received: true });
+      break;
     case "showLoading":
       showOverlay(createLoadingUI(message.text));
+      sendResponse({ received: true });
       break;
     case "showAnalysis":
       showOverlay(createAnalysisUI(message.analysis, message.originalText));
+      sendResponse({ received: true });
       break;
     case "showError":
       showOverlay(createErrorUI(message.error));
+      sendResponse({ received: true });
       break;
   }
+  return true;
 });
 
 function showOverlay(content) {
@@ -41,6 +49,12 @@ function showOverlay(content) {
 
   // Escape key to close
   document.addEventListener('keydown', handleEscape);
+
+  // Focus on input if present
+  const contextInput = blindspotOverlay.querySelector('#blindspot-context-input');
+  if (contextInput) {
+    setTimeout(() => contextInput.focus(), 100);
+  }
 }
 
 function handleEscape(e) {
@@ -55,6 +69,47 @@ function removeOverlay() {
     blindspotOverlay = null;
     document.removeEventListener('keydown', handleEscape);
   }
+}
+
+// NEW: Context prompt UI - asks user what decision they're facing
+function createContextPromptUI(selectedText, withScreenshot) {
+  const truncatedText = selectedText.length > 150 ? selectedText.substring(0, 150) + '...' : selectedText;
+
+  return `
+    <div class="blindspot-context-prompt">
+      <div class="blindspot-logo">
+        <span class="blindspot-icon">🧠</span>
+        <span class="blindspot-title">Blindspot</span>
+      </div>
+
+      <p class="blindspot-prompt-label">You selected:</p>
+      <p class="blindspot-selected-text">"${escapeHtml(truncatedText)}"</p>
+
+      <div class="blindspot-context-form">
+        <label class="blindspot-input-label" for="blindspot-context-input">
+          What decision are you trying to make?
+        </label>
+        <textarea
+          id="blindspot-context-input"
+          class="blindspot-textarea"
+          placeholder="e.g., Should I buy this? Is this a good career move? Am I overreacting to this email?"
+          rows="3"
+        ></textarea>
+        <p class="blindspot-hint">This helps Blindspot understand your situation and give better advice.</p>
+      </div>
+
+      <div class="blindspot-footer">
+        <button class="blindspot-btn blindspot-btn-secondary" id="blindspot-cancel-btn">
+          Cancel
+        </button>
+        <button class="blindspot-btn blindspot-btn-primary" id="blindspot-analyze-btn"
+          data-text="${escapeAttr(selectedText)}"
+          data-screenshot="${withScreenshot}">
+          ${withScreenshot ? '📸 Analyze with Context' : '🧠 Analyze'}
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 function createLoadingUI(text) {
@@ -167,13 +222,47 @@ function createErrorUI(error) {
 
 // Event delegation for dynamic buttons
 document.addEventListener('click', (e) => {
-  if (e.target.id === 'blindspot-close-btn') {
+  if (e.target.id === 'blindspot-close-btn' || e.target.id === 'blindspot-cancel-btn') {
     removeOverlay();
   }
   if (e.target.id === 'blindspot-copy') {
     copyInsights();
   }
+  if (e.target.id === 'blindspot-analyze-btn') {
+    handleAnalyzeClick(e.target);
+  }
 });
+
+// Handle Enter key in textarea
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.ctrlKey && e.target.id === 'blindspot-context-input') {
+    const analyzeBtn = document.getElementById('blindspot-analyze-btn');
+    if (analyzeBtn) {
+      handleAnalyzeClick(analyzeBtn);
+    }
+  }
+});
+
+function handleAnalyzeClick(btn) {
+  const selectedText = btn.dataset.text;
+  const withScreenshot = btn.dataset.screenshot === 'true';
+  const contextInput = document.getElementById('blindspot-context-input');
+  const userContext = contextInput ? contextInput.value.trim() : '';
+
+  // Show loading
+  showOverlay(createLoadingUI(selectedText));
+
+  // Send to background for analysis
+  chrome.runtime.sendMessage({
+    action: 'analyzeFromContent',
+    text: selectedText,
+    userContext: userContext,
+    withScreenshot: withScreenshot
+  }).catch(err => {
+    console.error('Blindspot: Failed to send message', err);
+    showOverlay(createErrorUI('Failed to connect. Please refresh the page and try again.'));
+  });
+}
 
 function copyInsights() {
   const content = document.querySelector('.blindspot-analysis');
@@ -200,4 +289,13 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function escapeAttr(text) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
