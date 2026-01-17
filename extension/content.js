@@ -587,10 +587,11 @@ if (document.readyState === 'loading') {
 // Proactively detects when user might need a bias check
 
 const INTERVENTION_CONFIG = {
-  // Shopping sites
+  // Shopping sites (only match domain names, not URL paths)
   shoppingSites: [
     'amazon.', 'ebay.', 'walmart.', 'target.', 'bestbuy.', 'etsy.',
-    'aliexpress.', 'shopify.', 'shop.', 'store.', 'cart', 'checkout'
+    'aliexpress.', 'newegg.', 'wayfair.', 'homedepot.', 'lowes.',
+    'costco.', 'macys.', 'nordstrom.', 'zappos.', 'asos.', 'shein.'
   ],
   // Job/Career sites
   careerSites: [
@@ -643,43 +644,70 @@ let hasShownTimeIntervention = false;
 
 // Check what type of site we're on
 function detectSiteType() {
-  const url = window.location.href.toLowerCase();
   const hostname = window.location.hostname.toLowerCase();
+  const pathname = window.location.pathname.toLowerCase();
 
+  // Shopping sites - match hostname only
   for (const site of INTERVENTION_CONFIG.shoppingSites) {
-    if (url.includes(site) || hostname.includes(site)) return 'shopping';
+    if (hostname.includes(site.replace('.', ''))) return 'shopping';
   }
+
+  // Career sites - some need path check (like linkedin.com/jobs)
   for (const site of INTERVENTION_CONFIG.careerSites) {
-    if (url.includes(site) || hostname.includes(site)) return 'career';
+    if (site.includes('/')) {
+      // Site includes path, check full URL
+      if ((hostname + pathname).includes(site)) return 'career';
+    } else if (hostname.includes(site.replace('.', ''))) {
+      return 'career';
+    }
   }
+
+  // Finance sites - match hostname
   for (const site of INTERVENTION_CONFIG.financeSites) {
-    if (url.includes(site) || hostname.includes(site)) return 'finance';
+    if (hostname.includes(site.replace('.', ''))) return 'finance';
   }
+
+  // Social media - match hostname
   for (const site of INTERVENTION_CONFIG.socialMediaSites) {
-    if (url.includes(site) || hostname.includes(site)) return 'social';
+    if (site.includes('/')) {
+      if ((hostname + pathname).includes(site)) return 'social';
+    } else if (hostname.includes(site.replace('.com', '').replace('.', ''))) {
+      return 'social';
+    }
   }
+
+  // Food delivery - match hostname
   for (const site of INTERVENTION_CONFIG.foodDeliverySites) {
-    if (url.includes(site) || hostname.includes(site)) return 'food';
+    if (hostname.includes(site.replace('.', ''))) return 'food';
   }
+
   return null;
 }
 
 // Check if we're on a subscription page
 function isSubscriptionPage() {
   const url = window.location.href.toLowerCase();
-  const pageText = document.body?.innerText?.toLowerCase() || '';
+  const pathname = window.location.pathname.toLowerCase();
 
-  for (const indicator of INTERVENTION_CONFIG.subscriptionIndicators) {
-    if (url.includes(indicator)) return true;
+  // Only trigger on explicit pricing/subscription URLs
+  const urlIndicators = ['pricing', 'plans', 'subscribe', 'upgrade', 'premium', 'membership'];
+  let urlMatch = false;
+  for (const indicator of urlIndicators) {
+    if (pathname.includes(indicator)) {
+      urlMatch = true;
+      break;
+    }
   }
 
-  // Check for pricing/plan elements
+  if (!urlMatch) return false;
+
+  // Also require actual pricing elements on page
   const pricingElements = document.querySelectorAll(
-    '[class*="pricing"], [class*="plan"], [class*="subscribe"], ' +
-    '[class*="premium"], [id*="pricing"], [id*="plans"]'
+    '[class*="price"], [class*="pricing"], [class*="plan-card"], ' +
+    '[class*="subscription"], [data-plan], [data-price]'
   );
 
-  return pricingElements.length > 2; // Multiple pricing elements = likely a pricing page
+  return pricingElements.length >= 2; // Must have pricing URL AND pricing elements
 }
 
 // Check for urgency tactics on page
@@ -702,20 +730,20 @@ function hasUrgencyTactics() {
 // Check if we're on a checkout page
 function isCheckoutPage() {
   const url = window.location.href.toLowerCase();
-  const pageText = document.body?.innerText?.toLowerCase() || '';
+  const pathname = window.location.pathname.toLowerCase();
+  const siteType = detectSiteType();
 
-  for (const indicator of INTERVENTION_CONFIG.checkoutIndicators) {
-    if (url.includes(indicator)) return true;
+  // Only check for checkout on shopping sites
+  if (siteType !== 'shopping') return false;
+
+  // Check URL for checkout indicators
+  const checkoutUrlIndicators = ['checkout', 'cart', 'basket', 'payment', 'order'];
+  for (const indicator of checkoutUrlIndicators) {
+    if (pathname.includes(indicator)) return true;
   }
 
-  // Check for checkout buttons/forms
-  const checkoutButtons = document.querySelectorAll(
-    'button[class*="checkout"], button[class*="purchase"], ' +
-    'button[class*="buy"], input[value*="Place order"], ' +
-    'button[class*="order"], [data-action*="checkout"]'
-  );
-
-  return checkoutButtons.length > 0;
+  // Don't rely on button detection alone - too many false positives
+  return false;
 }
 
 // Check if this site has been reported as false positive
@@ -724,13 +752,19 @@ async function isReportedFalsePositive(reason) {
     const { falsePositives = [] } = await chrome.storage.local.get(['falsePositives']);
     const hostname = window.location.hostname;
 
-    // Count reports for this hostname with this reason
-    const reportsForSite = falsePositives.filter(fp =>
+    // Count ALL reports for this hostname (any reason)
+    const allReportsForSite = falsePositives.filter(fp => fp.hostname === hostname);
+
+    // If reported 2+ times for ANY reason, skip ALL interventions on this site
+    if (allReportsForSite.length >= 2) return true;
+
+    // Also check specific reason
+    const reportsForReason = falsePositives.filter(fp =>
       fp.hostname === hostname && fp.reason === reason
     );
 
-    // If reported 2+ times, skip this intervention
-    return reportsForSite.length >= 2;
+    // If reported once for this specific reason, skip it
+    return reportsForReason.length >= 1;
   } catch (e) {
     return false;
   }
